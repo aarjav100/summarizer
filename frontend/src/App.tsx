@@ -24,7 +24,7 @@ export const App: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   // Navigation & Authentication states
-  const { user } = useUser();
+  const { user, isLoaded: isClerkLoaded } = useUser();
   const { signOut } = useClerk();
   const [view, setView] = useState<'landing' | 'workspace'>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -55,9 +55,19 @@ export const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('workspace') === 'true') {
       setView('workspace');
-      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
+
+  // Clean up URL query parameters after Clerk has successfully loaded/authenticated
+  useEffect(() => {
+    if (isClerkLoaded) {
+      const params = new URLSearchParams(window.location.search);
+      const hasClerkParams = Array.from(params.keys()).some(key => key.startsWith('__clerk'));
+      if (params.get('workspace') === 'true' && !hasClerkParams) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+  }, [isClerkLoaded]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/v1/models`)
