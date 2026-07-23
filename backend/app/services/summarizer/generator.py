@@ -39,8 +39,7 @@ class SummaryGeneratorService:
         def get_single_summary(stype: str):
             instruction = SummaryGeneratorService.SUMMARY_PROMPTS.get(stype, "Summarize the following text effectively.")
             prompt = f"{instruction}\n\nContent:\n{content[:4000]}"
-            res = LLMProviderService.generate_completion(prompt=prompt, model_id=model_id, filename=filename)
-            return stype, res
+            return LLMProviderService.generate_completion(prompt=prompt, model_id=model_id, filename=filename)
 
         # Generate each summary type in parallel to prevent gateway timeout
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(requested_types))) as executor:

@@ -28,16 +28,27 @@ export const App: React.FC = () => {
   const { signOut } = useClerk();
   const [view, setView] = useState<'landing' | 'workspace'>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [customUser, setCustomUser] = useState<UserProfile | null>(null);
+  const [customUser, setCustomUser] = useState<UserProfile | null>(() => {
+    const saved = localStorage.getItem('custom_user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [tempUsername, setTempUsername] = useState('');
 
-  const storedUsername = user ? localStorage.getItem(`username_${user.primaryEmailAddress?.emailAddress}`) : null;
+  const currentUserEmail = user?.primaryEmailAddress?.emailAddress || customUser?.email;
+  const storedUsername = currentUserEmail ? localStorage.getItem(`username_${currentUserEmail}`) : null;
 
   const currentUser: UserProfile | null = user ? {
     email: user.primaryEmailAddress?.emailAddress || '',
     name: storedUsername || user.fullName || user.username || 'Active Reader',
     initials: (storedUsername || user.firstName || user.fullName || 'SM').slice(0, 2).toUpperCase()
   } : customUser;
+
+  // Automatically redirect to workspace when logged in
+  useEffect(() => {
+    if (currentUser && view === 'landing') {
+      setView('workspace');
+    }
+  }, [currentUser, view]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -229,7 +240,11 @@ export const App: React.FC = () => {
         onSelectView={setView}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginOpen(true)}
-        onLogout={() => { signOut(); setCustomUser(null); }}
+        onLogout={() => { 
+          signOut(); 
+          setCustomUser(null); 
+          localStorage.removeItem('custom_user');
+        }}
         models={models}
         selectedModel={selectedModel}
         onSelectModel={(modelId) => {
@@ -287,7 +302,10 @@ export const App: React.FC = () => {
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onLoginSuccess={setCustomUser}
+        onLoginSuccess={(userProfile) => {
+          setCustomUser(userProfile);
+          localStorage.setItem('custom_user', JSON.stringify(userProfile));
+        }}
       />
 
       {/* First-time Username Prompt Overlay */}
