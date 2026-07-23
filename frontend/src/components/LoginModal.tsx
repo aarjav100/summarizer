@@ -13,9 +13,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   onClose,
   onLoginSuccess
 }) => {
-  const { signIn } = useSignIn();
-  const { signUp } = useSignUp();
+  const { signIn, setActive: setSignInActive } = useSignIn();
+  const { signUp, setActive: setSignUpActive } = useSignUp();
   const [isRegister, setIsRegister] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -48,8 +50,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         if (signUpAttempt.status === 'missing_requirements') {
           // Send verification email
           await signUpAttempt.prepareEmailAddressVerification({ strategy: 'email_code' });
-          setError('A verification code was sent to your email. Please verify with Clerk console.');
+          setVerifying(true);
         } else if (signUpAttempt.status === 'complete') {
+          if (setSignUpActive) {
+            await setSignUpActive({ session: signUpAttempt.createdSessionId });
+          }
           const initials = name.slice(0, 2).toUpperCase();
           onLoginSuccess({ email, name, initials });
           onClose();
@@ -66,6 +71,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         });
 
         if (signInAttempt.status === 'complete') {
+          if (setSignInActive) {
+            await setSignInActive({ session: signInAttempt.createdSessionId });
+          }
           const namePart = email.split('@')[0];
           onLoginSuccess({
             email,
@@ -79,6 +87,35 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       }
     } catch (err: any) {
       setError(err.errors?.[0]?.message || err.message || 'Credentials authentication failed.');
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!signUp || !verificationCode) {
+      setError('Please enter your verification code.');
+      return;
+    }
+
+    try {
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code: verificationCode
+      });
+
+      if (completeSignUp.status === 'complete') {
+        if (setSignUpActive) {
+          await setSignUpActive({ session: completeSignUp.createdSessionId });
+        }
+        const initials = name.slice(0, 2).toUpperCase();
+        onLoginSuccess({ email, name, initials });
+        onClose();
+      } else {
+        setError('Verification status incomplete. Please check the code.');
+      }
+    } catch (err: any) {
+      setError(err.errors?.[0]?.message || err.message || 'Verification failed.');
     }
   };
 
@@ -112,6 +149,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setError(err.errors?.[0]?.message || err.message || `${strategy} redirect failed.`);
     }
   };
+
 
   return (
     <div 
@@ -157,10 +195,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             textAlign: 'center'
           }}
         >
-          {isRegister ? 'Create Account' : 'Enter the Archives'}
+          {verifying ? 'Verify Your Email' : (isRegister ? 'Create Account' : 'Enter the Archives')}
         </h2>
         <p style={{ fontSize: '12px', color: '#7A8E8A', textAlign: 'center', marginBottom: '24px' }}>
-          Access SummaMind Studio's Multimodal Document Sanctuary
+          {verifying ? 'Enter the verification code sent to your email.' : "Access SummaMind Studio's Multimodal Document Sanctuary"}
         </p>
 
         {error && (
@@ -169,15 +207,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {isRegister && (
+        {verifying ? (
+          <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Full Name</label>
+              <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Verification Code</label>
               <input 
                 type="text" 
-                placeholder="Arthur Pendelton"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                placeholder="123456"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
                 style={{
                   width: '100%',
                   background: '#1C2F2B',
@@ -191,134 +229,196 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 }}
               />
             </div>
-          )}
 
-          <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Email Address</label>
-            <input 
-              type="email" 
-              placeholder="reader@archives.org"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+            <button 
+              type="submit"
+              className="btn-primary"
               style={{
-                width: '100%',
-                background: '#1C2F2B',
-                border: '1px solid var(--border)',
+                background: 'var(--gold)',
+                color: '#152622',
+                border: 'none',
                 borderRadius: '4px',
-                padding: '10px 12px',
-                color: '#EDE6D6',
-                fontSize: '13.5px',
-                outline: 'none',
-                boxSizing: 'border-box'
+                padding: '12px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                marginTop: '8px',
+                transition: 'opacity 0.2s ease'
               }}
-            />
-          </div>
+            >
+              Verify Code
+            </button>
 
-          <div>
-            <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Password</label>
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+            <button 
+              type="button"
+              onClick={() => setVerifying(false)}
               style={{
-                width: '100%',
-                background: '#1C2F2B',
-                border: '1px solid var(--border)',
-                borderRadius: '4px',
-                padding: '10px 12px',
-                color: '#EDE6D6',
-                fontSize: '13.5px',
-                outline: 'none',
-                boxSizing: 'border-box'
+                background: 'transparent',
+                border: 'none',
+                color: '#7A8E8A',
+                fontSize: '12.5px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                marginTop: '4px'
               }}
-            />
-          </div>
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {isRegister && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Full Name</label>
+                  <input 
+                    type="text" 
+                    placeholder="Arthur Pendelton"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: '#1C2F2B',
+                      border: '1px solid var(--border)',
+                      borderRadius: '4px',
+                      padding: '10px 12px',
+                      color: '#EDE6D6',
+                      fontSize: '13.5px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              )}
 
-          {/* Primary Action Button (Rust/Amber Gold) */}
-          <button 
-            type="submit"
-            className="btn-primary"
-            style={{
-              background: 'var(--gold)',
-              color: '#152622',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '12px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              marginTop: '8px',
-              transition: 'opacity 0.2s ease'
-            }}
-          >
-            {isRegister ? 'Register & Begin' : 'Unlock Access'}
-          </button>
-        </form>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Email Address</label>
+                <input 
+                  type="email" 
+                  placeholder="reader@archives.org"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: '#1C2F2B',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    padding: '10px 12px',
+                    color: '#EDE6D6',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
 
-        <div style={{ height: '1px', background: 'var(--border)', margin: '24px 0', position: 'relative', textAlign: 'center' }}>
-          <span style={{ position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)', background: '#152622', padding: '0 10px', fontSize: '11px', color: '#7A8E8A' }}>OR</span>
-        </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', color: '#7A8E8A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Password</label>
+                <input 
+                  type="password" 
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: '#1C2F2B',
+                    border: '1px solid var(--border)',
+                    borderRadius: '4px',
+                    padding: '10px 12px',
+                    color: '#EDE6D6',
+                    fontSize: '13.5px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
 
-        {/* Real SSO Accounts trigger */}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-          <button 
-            onClick={() => handleOAuth('oauth_google')}
-            style={{
-              flex: 1,
-              background: '#1C2F2B',
-              border: '1px solid var(--border)',
-              color: '#EDE6D6',
-              borderRadius: '4px',
-              padding: '8px',
-              fontSize: '12.5px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            🌐 Google
-          </button>
-          <button 
-            onClick={() => handleOAuth('oauth_github')}
-            style={{
-              flex: 1,
-              background: '#1C2F2B',
-              border: '1px solid var(--border)',
-              color: '#EDE6D6',
-              borderRadius: '4px',
-              padding: '8px',
-              fontSize: '12.5px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            💻 GitHub
-          </button>
-        </div>
+              {/* Primary Action Button (Rust/Amber Gold) */}
+              <button 
+                type="submit"
+                className="btn-primary"
+                style={{
+                  background: 'var(--gold)',
+                  color: '#152622',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '12px',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  marginTop: '8px',
+                  transition: 'opacity 0.2s ease'
+                }}
+              >
+                {isRegister ? 'Register & Begin' : 'Unlock Access'}
+              </button>
+            </form>
 
-        {/* Toggle Form type */}
-        <div style={{ textAlign: 'center', fontSize: '12.5px', color: '#7A8E8A' }}>
-          {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button 
-            onClick={() => setIsRegister(!isRegister)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--gold)',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              padding: 0
-            }}
-          >
-            {isRegister ? 'Sign In' : 'Sign Up'}
-          </button>
-        </div>
+            <div style={{ height: '1px', background: 'var(--border)', margin: '24px 0', position: 'relative', textAlign: 'center' }}>
+              <span style={{ position: 'absolute', top: '-8px', left: '50%', transform: 'translateX(-50%)', background: '#152622', padding: '0 10px', fontSize: '11px', color: '#7A8E8A' }}>OR</span>
+            </div>
+
+            {/* Real SSO Accounts trigger */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+              <button 
+                onClick={() => handleOAuth('oauth_google')}
+                style={{
+                  flex: 1,
+                  background: '#1C2F2B',
+                  border: '1px solid var(--border)',
+                  color: '#EDE6D6',
+                  borderRadius: '4px',
+                  padding: '8px',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                🌐 Google
+              </button>
+              <button 
+                onClick={() => handleOAuth('oauth_github')}
+                style={{
+                  flex: 1,
+                  background: '#1C2F2B',
+                  border: '1px solid var(--border)',
+                  color: '#EDE6D6',
+                  borderRadius: '4px',
+                  padding: '8px',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+              >
+                💻 GitHub
+              </button>
+            </div>
+
+            {/* Toggle Form type */}
+            <div style={{ textAlign: 'center', fontSize: '12.5px', color: '#7A8E8A' }}>
+              {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
+              <button 
+                onClick={() => setIsRegister(!isRegister)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--gold)',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  padding: 0
+                }}
+              >
+                {isRegister ? 'Sign In' : 'Sign Up'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
