@@ -67,7 +67,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         // Real Clerk Credentials login
         const signInAttempt = await signIn.create({
           identifier: email,
-          password: password
+          password: password,
+          strategy: 'password'
         });
 
         if (signInAttempt.status === 'complete') {
@@ -81,8 +82,10 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             initials: namePart.slice(0, 2).toUpperCase()
           });
           onClose();
+        } else if (signInAttempt.status === 'needs_first_factor') {
+          setError('Email verification required. Please verify your email first.');
         } else {
-          setError('Sign-in status incomplete. Please check credential settings.');
+          setError(`Sign-in status incomplete: ${signInAttempt.status}. Please check your account settings.`);
         }
       }
     } catch (err: any) {
