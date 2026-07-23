@@ -5,8 +5,13 @@ from app.database.models import Base
 
 # SQLAlchemy Engine
 # Note: DATABASE_URL should be set in .env
+connect_args = {}
+if "supabase.com" in settings.DATABASE_URL or "pooler" in settings.DATABASE_URL:
+    connect_args["sslmode"] = "require"
+
 engine = create_engine(
     settings.DATABASE_URL,
+    connect_args=connect_args,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20
