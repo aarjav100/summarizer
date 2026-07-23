@@ -44,10 +44,13 @@ export const App: React.FC = () => {
     imageUrl: user.imageUrl
   } : customUser;
 
-  // Automatically redirect to workspace when logged in
+  // Automatically redirect to workspace when logged in and close login modal
   useEffect(() => {
-    if (currentUser && view === 'landing') {
-      setView('workspace');
+    if (currentUser) {
+      if (view === 'landing') {
+        setView('workspace');
+      }
+      setIsLoginOpen(false);
     }
   }, [currentUser, view]);
 
