@@ -143,7 +143,7 @@ class LLMProviderService:
                 prompt_tokens = res.usage.prompt_tokens if res.usage else prompt_tokens
                 completion_tokens = res.usage.completion_tokens if res.usage else max(20, len(response_text.split()) * 4 // 3)
 
-            elif model_info.provider == "Google Gemini" and settings.GEMINI_API_KEY:
+            elif model_info.provider == "Google Gemini" and settings.GEMINI_API_KEY and settings.GEMINI_API_KEY.startswith("AIzaSy"):
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GEMINI_API_KEY)
                 model = genai.GenerativeModel("gemini-1.5-flash")
