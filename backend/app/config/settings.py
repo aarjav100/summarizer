@@ -60,3 +60,11 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 settings = Settings()
+
+# Dynamically rewrite direct Supabase host to use Connection Pooler
+# This resolves psycopg2 operational connection failures (IPv6 unreachable issues on Render)
+if "db.fyriayifjvgqjpzfwsvm.supabase.co" in settings.DATABASE_URL:
+    settings.DATABASE_URL = settings.DATABASE_URL.replace(
+        "db.fyriayifjvgqjpzfwsvm.supabase.co", 
+        "aws-0-ap-northeast-1.pooler.supabase.com"
+    ).replace(":5432", ":6543")
