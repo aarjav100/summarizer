@@ -154,24 +154,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             }}
           />
         )}
-
-        {/* Toggle Footer link */}
-        <div style={{ textAlign: 'center', fontSize: '12px', color: '#7A8E8A', paddingBottom: '20px', marginTop: '-10px' }}>
-          {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button 
-            onClick={() => setIsRegister(!isRegister)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--gold)',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              padding: 0
-            }}
-          >
-            {isRegister ? 'Sign In' : 'Sign Up'}
-          </button>
-        </div>
       </div>
     </div>
   );
