@@ -41,6 +41,18 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const isDefaultAvatar = (url: string | undefined): boolean => {
+    if (!url) return true;
+    const lowerUrl = url.toLowerCase();
+    return (
+      lowerUrl.includes('default') || 
+      lowerUrl.includes('placeholder') || 
+      lowerUrl.includes('eyJ0eXBlIjoiZGVmYXVsd'.toLowerCase())
+    );
+  };
+  
+  const hasValidImageUrl = currentUser && currentUser.imageUrl && !isDefaultAvatar(currentUser.imageUrl);
+
   return (
     <div className="headbar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {/* Top Navigation Row */}
@@ -103,19 +115,19 @@ export const Header: React.FC<HeaderProps> = ({
                 className="brand-badge" 
                 style={{ 
                   cursor: 'pointer', 
-                  background: currentUser.imageUrl ? 'transparent' : 'var(--gold)', 
+                  background: hasValidImageUrl ? 'transparent' : 'var(--gold)', 
                   color: '#152622', 
                   fontWeight: 'bold',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: currentUser.imageUrl ? 'none' : '1px solid var(--gold)',
+                  border: 'none',
                   outline: 'none',
                   overflow: 'hidden',
                   padding: 0
                 }}
               >
-                {currentUser.imageUrl ? (
+                {hasValidImageUrl ? (
                   <img 
                     src={currentUser.imageUrl} 
                     alt={currentUser.name} 
@@ -148,7 +160,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                    {currentUser.imageUrl ? (
+                    {hasValidImageUrl ? (
                       <img 
                         src={currentUser.imageUrl} 
                         alt={currentUser.name} 
