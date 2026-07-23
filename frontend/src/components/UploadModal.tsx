@@ -7,6 +7,8 @@ interface UploadModalProps {
   projectId: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://summamind-backend.onrender.com');
+
 export const UploadModal: React.FC<UploadModalProps> = ({
   isOpen,
   onClose,
@@ -83,7 +85,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     if (urlInput) formData.append('source_url', urlInput);
     if (textInput) formData.append('text_content', textInput);
 
-    fetch('/api/v1/files/upload', {
+    fetch(`${API_BASE_URL}/api/v1/files/upload`, {
       method: 'POST',
       body: formData
     })

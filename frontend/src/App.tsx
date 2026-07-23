@@ -8,6 +8,8 @@ import { LandingPage } from './components/LandingPage';
 import { LoginModal } from './components/LoginModal';
 import { LLMModel, Project, FileItem, SummaryItem, ChatMessage } from './types';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://summamind-backend.onrender.com');
+
 export const App: React.FC = () => {
   const [models, setModels] = useState<LLMModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('auto-router');
@@ -46,7 +48,7 @@ export const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetch('/api/v1/models')
+    fetch(`${API_BASE_URL}/api/v1/models`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) setModels(data);
@@ -67,7 +69,7 @@ export const App: React.FC = () => {
     ]);
 
     // Fetch files from database API on load
-    fetch('/api/v1/files?project_id=proj-1')
+    fetch(`${API_BASE_URL}/api/v1/files?project_id=proj-1`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -97,7 +99,7 @@ export const App: React.FC = () => {
 
   const loadSummaryForFile = (fileId: string, modelId: string, customTypes: string[] = ['short', 'medium', 'detailed', 'bullet', 'takeaways', 'action_items', 'faq', 'timeline', 'mcq', 'structured_json']) => {
     setIsLoadingSummary(true);
-    fetch('/api/v1/summarize', {
+    fetch(`${API_BASE_URL}/api/v1/summarize`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file_id: fileId, summary_types: customTypes, model_id: modelId })
@@ -174,7 +176,7 @@ export const App: React.FC = () => {
     };
     setChatMessages((prev) => [...prev, userMsg]);
 
-    fetch('/api/v1/chat', {
+    fetch(`${API_BASE_URL}/api/v1/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
