@@ -51,11 +51,23 @@ app.include_router(usage.router, prefix=settings.API_V1_STR)
 
 @app.get("/health", tags=["Health"])
 def health_check():
+    db_status = "unknown"
+    try:
+        from app.database.connection import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION,
-        "environment": settings.ENV
+        "environment": settings.ENV,
+        "database": db_status
     }
 
 if __name__ == "__main__":
