@@ -40,7 +40,8 @@ export const App: React.FC = () => {
   const currentUser: UserProfile | null = user ? {
     email: user.primaryEmailAddress?.emailAddress || '',
     name: storedUsername || user.fullName || user.username || 'Active Reader',
-    initials: (storedUsername || user.firstName || user.fullName || 'SM').slice(0, 2).toUpperCase()
+    initials: (storedUsername || user.firstName || user.fullName || 'SM').slice(0, 2).toUpperCase(),
+    imageUrl: user.imageUrl
   } : customUser;
 
   // Automatically redirect to workspace when logged in

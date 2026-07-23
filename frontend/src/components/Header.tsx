@@ -5,6 +5,7 @@ export interface UserProfile {
   email: string;
   name: string;
   initials: string;
+  imageUrl?: string;
 }
 
 interface HeaderProps {
@@ -102,17 +103,32 @@ export const Header: React.FC<HeaderProps> = ({
                 className="brand-badge" 
                 style={{ 
                   cursor: 'pointer', 
-                  background: 'var(--gold)', 
+                  background: currentUser.imageUrl ? 'transparent' : 'var(--gold)', 
                   color: '#152622', 
                   fontWeight: 'bold',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  border: 'none',
-                  outline: 'none'
+                  border: currentUser.imageUrl ? 'none' : '1px solid var(--gold)',
+                  outline: 'none',
+                  overflow: 'hidden',
+                  padding: 0
                 }}
               >
-                {currentUser.initials}
+                {currentUser.imageUrl ? (
+                  <img 
+                    src={currentUser.imageUrl} 
+                    alt={currentUser.name} 
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover',
+                      borderRadius: '50%'
+                    }} 
+                  />
+                ) : (
+                  currentUser.initials
+                )}
               </button>
               
               {menuOpen && (
@@ -131,11 +147,45 @@ export const Header: React.FC<HeaderProps> = ({
                     zIndex: 100
                   }}
                 >
-                  <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#EDE6D6', marginBottom: '2px' }}>
-                    {currentUser.name}
-                  </div>
-                  <div style={{ fontSize: '10px', color: '#7A8E8A', marginBottom: '8px', wordBreak: 'break-all' }}>
-                    {currentUser.email}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    {currentUser.imageUrl ? (
+                      <img 
+                        src={currentUser.imageUrl} 
+                        alt={currentUser.name} 
+                        style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                          border: '1px solid var(--gold)'
+                        }} 
+                      />
+                    ) : (
+                      <div 
+                        style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          borderRadius: '50%', 
+                          background: 'var(--gold)', 
+                          color: '#152622', 
+                          fontWeight: 'bold', 
+                          fontSize: '12px',
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center' 
+                        }}
+                      >
+                        {currentUser.initials}
+                      </div>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '12px', color: '#EDE6D6', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {currentUser.name}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#7A8E8A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {currentUser.email}
+                      </div>
+                    </div>
                   </div>
                   <div style={{ height: '1px', background: 'var(--border)', margin: '8px 0' }} />
                   <button 
