@@ -29,23 +29,52 @@ class SummaryGeneratorService:
         file_id: str = "file-demo-id"
     ) -> SummaryResponse:
         from typing import Optional
+        import concurrent.futures
         summaries: List[SummaryItemResponse] = []
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_cost = 0.0
         max_latency = 0.0
 
-        for stype in requested_types:
+        def get_single_summary(stype: str):
             instruction = SummaryGeneratorService.SUMMARY_PROMPTS.get(stype, "Summarize the following text effectively.")
             prompt = f"{instruction}\n\nContent:\n{content[:4000]}"
-            
             res = LLMProviderService.generate_completion(prompt=prompt, model_id=model_id, filename=filename)
-            metrics: LLMUsageMetrics = res["metrics"]
+            return stype, res
+
+        # Generate each summary type in parallel to prevent gateway timeout
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(requested_types))) as executor:
+            future_to_stype = {executor.submit(get_single_summary, stype): stype for stype in requested_types}
             
+            results = {}
+            for future in concurrent.futures.as_completed(future_to_stype):
+                stype = future_to_stype[future]
+                try:
+                    results[stype] = future.result()
+                except Exception as exc:
+                    print(f"Summary generation for {stype} failed: {exc}")
+                    results[stype] = {
+                        "content": f"Unable to generate {stype} summary at this time.",
+                        "metrics": LLMUsageMetrics(
+                            model_name=model_id,
+                            provider="AI Router",
+                            prompt_tokens=0,
+                            completion_tokens=0,
+                            total_tokens=0,
+                            response_time_ms=0.0,
+                            estimated_cost_usd=0.0
+                        )
+                    }
+
+        for stype in requested_types:
+            res = results.get(stype)
+            if not res:
+                continue
+            metrics: LLMUsageMetrics = res["metrics"]
             total_prompt_tokens += metrics.prompt_tokens
             total_completion_tokens += metrics.completion_tokens
             total_cost += metrics.estimated_cost_usd
-            max_latency += metrics.response_time_ms
+            max_latency = max(max_latency, metrics.response_time_ms)
 
             title = stype.replace("_", " ").title() + " Summary"
             summaries.append(SummaryItemResponse(

@@ -96,7 +96,7 @@ class LLMProviderService:
         try:
             if model_info.provider == "OpenAI" and settings.OPENAI_API_KEY:
                 from openai import OpenAI
-                client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=5.0)
                 res = client.chat.completions.create(
                     model="gpt-4o",
                     messages=messages,
@@ -108,7 +108,7 @@ class LLMProviderService:
                 
             elif model_info.provider == "DeepSeek" and settings.DEEPSEEK_API_KEY:
                 from openai import OpenAI
-                client = OpenAI(base_url="https://api.deepseek.com", api_key=settings.DEEPSEEK_API_KEY)
+                client = OpenAI(base_url="https://api.deepseek.com", api_key=settings.DEEPSEEK_API_KEY, timeout=5.0)
                 res = client.chat.completions.create(
                     model="deepseek-chat",
                     messages=messages,
@@ -120,7 +120,7 @@ class LLMProviderService:
 
             elif model_info.provider == "Grok" and settings.GROK_API_KEY:
                 from openai import OpenAI
-                client = OpenAI(base_url="https://api.x.ai/v1", api_key=settings.GROK_API_KEY)
+                client = OpenAI(base_url="https://api.x.ai/v1", api_key=settings.GROK_API_KEY, timeout=5.0)
                 res = client.chat.completions.create(
                     model="grok-beta",
                     messages=messages,
@@ -132,7 +132,7 @@ class LLMProviderService:
 
             elif model_info.provider == "OpenRouter" and settings.OPENROUTER_API_KEY:
                 from openai import OpenAI
-                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY)
+                client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY, timeout=5.0)
                 target_model = "google/gemini-2.5-flash" if "gemini" in model_info.id else "meta-llama/llama-3-8b-instruct:free"
                 res = client.chat.completions.create(
                     model=target_model,
@@ -147,13 +147,13 @@ class LLMProviderService:
                 import google.generativeai as genai
                 genai.configure(api_key=settings.GEMINI_API_KEY)
                 model = genai.GenerativeModel("gemini-1.5-flash")
-                res = model.generate_content(prompt)
+                res = model.generate_content(prompt, request_options={"timeout": 5.0})
                 response_text = res.text
                 completion_tokens = max(20, len(response_text.split()) * 4 // 3)
 
             elif model_info.provider == "Anthropic Claude" and settings.ANTHROPIC_API_KEY:
                 import anthropic
-                client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+                client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=5.0)
                 res = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=2048,
