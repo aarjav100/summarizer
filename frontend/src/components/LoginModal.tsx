@@ -333,6 +333,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                 />
               </div>
 
+              {/* CAPTCHA Widget for Clerk Bot Protection */}
+              {isRegister && <div id="clerk-captcha" style={{ marginTop: '4px' }}></div>}
+
               {/* Primary Action Button (Rust/Amber Gold) */}
               <button 
                 type="submit"
