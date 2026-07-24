@@ -2,35 +2,42 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.config.settings import settings
 from app.database.models import Base
-from urllib.parse import urlparse
-import socket
+import ssl
 
-# SQLAlchemy Engine using psycopg (v3) driver with direct Supabase connection
+# ──────────────────────────────────────────────────────────────────────
+# SQLAlchemy Engine using pg8000 (pure Python PostgreSQL driver)
+#
+# Why pg8000 instead of psycopg2/psycopg?
+#   - Supabase's Connection Pooler (Supavisor) requires TLS with SNI
+#   - psycopg2/psycopg use libpq (C library) for TLS, and the bundled
+#     libpq on Render does NOT send SNI → ENOIDENTIFIER error
+#   - pg8000 uses Python's native `ssl` module which ALWAYS sends SNI
+#     via ssl.wrap_socket(server_hostname=host)
+#   - The pooler endpoint (pooler.supabase.com:6543) is IPv4-compatible,
+#     avoiding Render's IPv6 connectivity issues with direct connections
+# ──────────────────────────────────────────────────────────────────────
+
 db_url = settings.DATABASE_URL
 
-# Ensure SQLAlchemy uses the psycopg (v3) driver
+# Validate DATABASE_URL is configured
+if not db_url or db_url == "postgresql://postgres:postgres@localhost:5432/summarizer":
+    print("WARNING: DATABASE_URL is not configured — using localhost fallback.")
+
+# Set SQLAlchemy to use the pg8000 driver
+# Convert: postgresql:// → postgresql+pg8000://
 if db_url.startswith("postgresql://"):
-    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
 elif db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    db_url = db_url.replace("postgres://", "postgresql+pg8000://", 1)
 
-# Force IPv4 for Supabase connections — Render cannot reach Supabase over IPv6.
-# We resolve the hostname to an IPv4 address and pass it as libpq's 'hostaddr',
-# which forces the TCP connection over IPv4. The original hostname stays in the
-# URL for SSL certificate validation.
+# Configure SSL context for pg8000 — Python's ssl module sends SNI natively
+# This is what makes the Supabase pooler connection work from Render
 connect_args = {}
-parsed = urlparse(settings.DATABASE_URL)
-hostname = parsed.hostname
-
-if hostname and "supabase.co" in hostname:
-    try:
-        ipv4_results = socket.getaddrinfo(hostname, parsed.port or 5432, socket.AF_INET)
-        if ipv4_results:
-            ipv4_addr = ipv4_results[0][4][0]
-            connect_args["hostaddr"] = ipv4_addr
-            print(f"Resolved {hostname} → {ipv4_addr} (forced IPv4)")
-    except Exception as e:
-        print(f"IPv4 resolution failed for {hostname}: {e}")
+if "supabase" in settings.DATABASE_URL:
+    ssl_ctx = ssl.create_default_context()
+    ssl_ctx.check_hostname = False
+    ssl_ctx.verify_mode = ssl.CERT_NONE
+    connect_args["ssl_context"] = ssl_ctx
 
 engine = create_engine(
     db_url,
@@ -63,5 +70,3 @@ def init_db():
         print("Supabase database tables successfully initialized.")
     except Exception as e:
         print(f"Database initialization warning: {e}")
-
-

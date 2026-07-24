@@ -60,9 +60,3 @@ class Settings(BaseSettings):
         case_sensitive = True
 
 settings = Settings()
-
-# Ensure SSL is enabled for Supabase connections (both direct and pooler)
-if "supabase" in settings.DATABASE_URL and "sslmode" not in settings.DATABASE_URL:
-    separator = "&" if "?" in settings.DATABASE_URL else "?"
-    settings.DATABASE_URL += f"{separator}sslmode=require"
-
