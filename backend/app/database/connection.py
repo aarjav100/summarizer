@@ -2,33 +2,39 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.config.settings import settings
 from app.database.models import Base
+from urllib.parse import urlparse
 import socket
-
-# Force IPv4 resolution for Supabase direct connections
-# Render's network may fail to connect over IPv6 to Supabase
-_original_getaddrinfo = socket.getaddrinfo
-
-def _ipv4_preferred_getaddrinfo(*args, **kwargs):
-    """Prefer IPv4 addresses for Supabase connections (workaround for Render)."""
-    responses = _original_getaddrinfo(*args, **kwargs)
-    ipv4 = [r for r in responses if r[0] == socket.AF_INET]
-    return ipv4 if ipv4 else responses
-
-if "supabase.co" in settings.DATABASE_URL:
-    socket.getaddrinfo = _ipv4_preferred_getaddrinfo
 
 # SQLAlchemy Engine using psycopg (v3) driver with direct Supabase connection
 db_url = settings.DATABASE_URL
 
 # Ensure SQLAlchemy uses the psycopg (v3) driver
-# Convert: postgresql:// → postgresql+psycopg://
 if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 elif db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
 
+# Force IPv4 for Supabase connections — Render cannot reach Supabase over IPv6.
+# We resolve the hostname to an IPv4 address and pass it as libpq's 'hostaddr',
+# which forces the TCP connection over IPv4. The original hostname stays in the
+# URL for SSL certificate validation.
+connect_args = {}
+parsed = urlparse(settings.DATABASE_URL)
+hostname = parsed.hostname
+
+if hostname and "supabase.co" in hostname:
+    try:
+        ipv4_results = socket.getaddrinfo(hostname, parsed.port or 5432, socket.AF_INET)
+        if ipv4_results:
+            ipv4_addr = ipv4_results[0][4][0]
+            connect_args["hostaddr"] = ipv4_addr
+            print(f"Resolved {hostname} → {ipv4_addr} (forced IPv4)")
+    except Exception as e:
+        print(f"IPv4 resolution failed for {hostname}: {e}")
+
 engine = create_engine(
     db_url,
+    connect_args=connect_args,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20
@@ -57,4 +63,5 @@ def init_db():
         print("Supabase database tables successfully initialized.")
     except Exception as e:
         print(f"Database initialization warning: {e}")
+
 
