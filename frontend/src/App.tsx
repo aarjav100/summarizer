@@ -130,7 +130,7 @@ export const App: React.FC = () => {
       });
   };
 
-  const loadSummaryForFile = (fileId: string, modelId: string, customTypes: string[] = ['short', 'medium', 'detailed', 'bullet', 'takeaways', 'action_items', 'faq', 'timeline', 'mcq', 'structured_json']) => {
+  const loadSummaryForFile = (fileId: string, modelId: string, customTypes: string[] = ['short', 'medium', 'detailed', 'bullet', 'takeaways', 'extracted_details', 'action_items', 'faq', 'timeline', 'mcq', 'structured_json']) => {
     setIsLoadingSummary(true);
     fetch(`${API_BASE_URL}/api/v1/summarize`, {
       method: 'POST',
@@ -169,6 +169,11 @@ export const App: React.FC = () => {
             summary_type: 'takeaways',
             title: 'Key Takeaways',
             content: '1. **Zero Hallucinations**: Grounded via vector search\n2. **Multi-Stage RAG**: Ingest → Index → Retrieve → Rerank → Synthesize'
+          },
+          {
+            summary_type: 'extracted_details',
+            title: 'Extracted Details',
+            content: '**Extracted details from LLM_Multimodal_RAG_Architecture.pdf:**\n\n- **Title**: **LLM Multimodal RAG Architecture**\n- **Summary**: Technical specification document detailing a multi-stage RAG ingestion and retrieval network.\n- **Key Findings**:\n  - Ingests image and PDF text, converting them to 1536-dimensional embeddings.\n  - Vector search query path incorporates Supabase pgvector cosine matching with cross-encoder rerank passes.'
           },
           {
             summary_type: 'action_items',

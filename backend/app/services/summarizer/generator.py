@@ -17,7 +17,29 @@ class SummaryGeneratorService:
         "mcq": "Generate 5 Multiple Choice Questions (MCQs) with correct answer keys and explanations.",
         "definitions": "List important terms and their exact definitions mentioned in the content.",
         "formulae": "Extract all mathematical, financial, or logical formulas and equations.",
-        "structured_json": "Output a clean, valid JSON representation of key entities, dates, and main conclusions."
+        "structured_json": "Output a clean, valid JSON representation of key entities, dates, and main conclusions.",
+        "extracted_details": (
+            "You are a document extraction and formatting assistant. You will receive raw extracted text from an uploaded file "
+            "(this could be a resume, ID/certificate, invoice, contract, report, or any other document type). "
+            "Follow these steps:\n"
+            "STEP 1 — Identify Document Type\n"
+            "Determine what kind of document this is (e.g., Resume, Invoice, ID/Certificate, Contract, Report, Letter, Form, or Other) based on the content.\n"
+            "STEP 2 — Format Accordingly\n"
+            "General rules for all document types:\n"
+            "- Start with a bold title line: **Extracted details:**\n"
+            "- Use Markdown formatting: **bold** for names, titles, key labels, and headers; *italics* for dates.\n"
+            "- Break long unstructured paragraphs into clearly separated sections and bullet points — never output one long run-on paragraph.\n"
+            "- Use nested sub-bullets for details belonging to a parent item (e.g., coursework under a degree, line items under an invoice).\n"
+            "- Do not repeat information. Clean up merged/run-on text into properly separated fields.\n"
+            "- Keep tone concise and professional. No extra commentary or explanations — output only the formatted result.\n"
+            "Type-specific structure:\n"
+            "- If Resume: sections = **Education**, **Experience**, **Skills**, **Projects**, **Certifications** (include only sections with data). Bold institution/company + role/degree; italicize dates.\n"
+            "- If Invoice/Receipt: sections = **Vendor Details**, **Bill To**, **Items** (table or bullet list with quantity/price), **Total Amount**, **Date**, **Invoice #**.\n"
+            "- If ID/Certificate: sections = **Name**, **Document Type**, **ID/Certificate Number**, **Issue Date**, **Expiry Date** (if applicable), **Issuing Authority**.\n"
+            "- If Contract/Agreement: sections = **Parties Involved**, **Effective Date**, **Key Terms**, **Obligations**, **Duration/Termination Clause**.\n"
+            "- If Report: sections = **Title**, **Summary**, **Key Findings**, **Data/Metrics**, **Conclusion/Recommendations**.\n"
+            "- If none of the above fit clearly: create logical sections based on the natural structure of the content, using bold headers for each distinct topic."
+        )
     }
 
     @staticmethod

@@ -25,6 +25,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
     { label: "Detailed Summary", id: "detailed", icon: "📘" },
     { label: "Bullet Points", id: "bullet", icon: "📋" },
     { label: "Key Takeaways", id: "takeaways", icon: "✔️" },
+    { label: "Extracted Details", id: "extracted_details", icon: "🔎" },
     { label: "Action Items", id: "action_items", icon: "☑️" },
     { label: "Generated FAQ", id: "faq", icon: "❓" },
     { label: "Timeline & Chapters", id: "timeline", icon: "🕒" },
