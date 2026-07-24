@@ -3,15 +3,19 @@ from sqlalchemy.orm import sessionmaker
 from app.config.settings import settings
 from app.database.models import Base
 
-# SQLAlchemy Engine
-# Note: DATABASE_URL should be set in .env
-connect_args = {}
-if "supabase.com" in settings.DATABASE_URL or "pooler" in settings.DATABASE_URL:
-    connect_args["sslmode"] = "require"
+# SQLAlchemy Engine using psycopg (v3) driver
+# psycopg v3 natively supports SNI which is required by Supabase Supavisor pooler
+db_url = settings.DATABASE_URL
+
+# Ensure SQLAlchemy uses the psycopg (v3) driver, not psycopg2
+# Convert: postgresql:// → postgresql+psycopg://
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+elif db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql+psycopg://", 1)
 
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args=connect_args,
+    db_url,
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20
@@ -40,3 +44,4 @@ def init_db():
         print("Supabase database tables successfully initialized.")
     except Exception as e:
         print(f"Database initialization warning: {e}")
+
