@@ -370,7 +370,6 @@ body {
   border-color: var(--gold);
 }
 
-/* ===== Content Screen ===== */
 .reading-canvas {
   background: var(--paper);
   color: var(--ink);
@@ -379,6 +378,65 @@ body {
   padding: 40px 48px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   font-family: 'Playfair Display', Georgia, serif;
+}
+
+/* Custom styling for the parsed summary text inside the canvas */
+.parsed-summary-content h1,
+.parsed-summary-content h2,
+.parsed-summary-content h3,
+.parsed-summary-content h4 {
+  color: var(--rust) !important;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: bold;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+.parsed-summary-content h2 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid rgba(167, 62, 47, 0.15);
+  padding-bottom: 4px;
+}
+
+.parsed-summary-content h3 {
+  font-size: 1.25rem;
+}
+
+.parsed-summary-content strong {
+  color: var(--rust);
+  font-weight: 700;
+}
+
+.parsed-summary-content ul {
+  list-style-type: none; /* remove default bullets */
+  padding-left: 1.2em;
+}
+
+.parsed-summary-content ul li {
+  position: relative;
+  margin-bottom: 0.5em;
+}
+
+.parsed-summary-content ul li::before {
+  content: "•";
+  color: var(--gold); /* beautiful gold bullet markers */
+  font-weight: bold;
+  display: inline-block;
+  width: 1em;
+  margin-left: -1em;
+}
+
+.parsed-summary-content ol {
+  padding-left: 1.2em;
+}
+
+.parsed-summary-content ol li {
+  margin-bottom: 0.5em;
+}
+
+.parsed-summary-content ol li::marker {
+  color: var(--rust); /* numbered lists have rust-red markers */
+  font-weight: bold;
 }
 
 .reading-canvas .blank-state {
