@@ -210,6 +210,9 @@ class LLMProviderService:
             parts = prompt.split("Content:")
             if len(parts) > 1:
                 content_extracted = parts[1].strip()
+                # Clean trailing prompt instructions like 'Output only...' from the content
+                import re
+                content_extracted = re.sub(r'(?i)\bOutput only\b.*', '', content_extracted).strip()
         
         # Extract the user's actual question query from prompt:
         user_query = ""

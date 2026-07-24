@@ -4,41 +4,96 @@ from app.schemas.schemas import SummaryItemResponse, SummaryResponse, LLMUsageMe
 
 class SummaryGeneratorService:
     SUMMARY_PROMPTS = {
-        "short": "Provide a concise 2-3 line high-level summary of the provided content.",
-        "medium": "Provide a balanced 2-paragraph medium summary highlighting core principles and findings.",
-        "detailed": "Provide an in-depth comprehensive summary breaking down background, methodology, results, and conclusions.",
-        "bullet": "Summarize the key information into structured, easy-to-read bullet points.",
-        "takeaways": "Extract the top 5 strategic key takeaways from the content.",
-        "facts": "Extract essential empirical facts, figures, dates, and statistics.",
-        "action_items": "Extract actionable next steps, recommendations, and tasks.",
-        "faq": "Generate a list of Frequently Asked Questions (FAQs) with detailed answers based on the content.",
-        "timeline": "Create a chronological timeline of key events, timestamps, or logical progression.",
-        "chapters": "Divide the content into logical chapters or sections with sub-summaries for each.",
-        "mcq": "Generate 5 Multiple Choice Questions (MCQs) with correct answer keys and explanations.",
-        "definitions": "List important terms and their exact definitions mentioned in the content.",
-        "formulae": "Extract all mathematical, financial, or logical formulas and equations.",
-        "structured_json": "Output a clean, valid JSON representation of key entities, dates, and main conclusions.",
+        "short": (
+            "Summarize the following document in exactly 2-3 lines. Be extremely concise — capture only the single most important point or purpose of the document. No headers, no bullets, no bold — plain flowing sentences only.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the 2-3 line summary, nothing else."
+        ),
+        "medium": (
+            "Summarize the following document in a single well-structured paragraph of 5-8 sentences. Cover the main sections and key points without going into granular detail. Use **bold** for key names, titles, or figures within the paragraph. No headers or bullet points.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the summary paragraph, nothing else."
+        ),
+        "detailed": (
+            "Provide a detailed, well-organized summary of the following document. Use Markdown formatting: **bold headers** for each major section detected in the document, bullet points for individual entries within a section, nested sub-bullets for supporting details, and *italics* for dates. Cover all meaningful information — do not skip sections. Keep tone concise and professional.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the formatted summary, nothing else."
+        ),
+        "bullet": (
+            "Convert the following document into a clean bullet-point list. Each bullet should capture one discrete fact, point, or entry. Use **bold** for key terms, names, or headers. Group related bullets under bold sub-headers if the document has multiple distinct sections. Do not write any paragraphs — bullets only.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the bullet list, nothing else."
+        ),
+        "takeaways": (
+            "Extract the 4-6 most important takeaways from the following document. Each takeaway should be one bolded short title followed by a one-line explanation. Focus only on insights, outcomes, or high-value information — skip routine/filler details.\n\n"
+            "Format each as:\n"
+            "**Takeaway title** — explanation.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the list of takeaways, nothing else."
+        ),
         "extracted_details": (
-            "You are a document extraction and formatting assistant. You will receive raw extracted text from an uploaded file "
-            "(this could be a resume, ID/certificate, invoice, contract, report, or any other document type). "
-            "Follow these steps:\n"
-            "STEP 1 — Identify Document Type\n"
-            "Determine what kind of document this is (e.g., Resume, Invoice, ID/Certificate, Contract, Report, Letter, Form, or Other) based on the content.\n"
-            "STEP 2 — Format Accordingly\n"
-            "General rules for all document types:\n"
-            "- Start with a bold title line: **Extracted details:**\n"
-            "- Use Markdown formatting: **bold** for names, titles, key labels, and headers; *italics* for dates.\n"
-            "- Break long unstructured paragraphs into clearly separated sections and bullet points — never output one long run-on paragraph.\n"
-            "- Use nested sub-bullets for details belonging to a parent item (e.g., coursework under a degree, line items under an invoice).\n"
-            "- Do not repeat information. Clean up merged/run-on text into properly separated fields.\n"
-            "- Keep tone concise and professional. No extra commentary or explanations — output only the formatted result.\n"
-            "Type-specific structure:\n"
-            "- If Resume: sections = **Education**, **Experience**, **Skills**, **Projects**, **Certifications** (include only sections with data). Bold institution/company + role/degree; italicize dates.\n"
-            "- If Invoice/Receipt: sections = **Vendor Details**, **Bill To**, **Items** (table or bullet list with quantity/price), **Total Amount**, **Date**, **Invoice #**.\n"
-            "- If ID/Certificate: sections = **Name**, **Document Type**, **ID/Certificate Number**, **Issue Date**, **Expiry Date** (if applicable), **Issuing Authority**.\n"
-            "- If Contract/Agreement: sections = **Parties Involved**, **Effective Date**, **Key Terms**, **Obligations**, **Duration/Termination Clause**.\n"
-            "- If Report: sections = **Title**, **Summary**, **Key Findings**, **Data/Metrics**, **Conclusion/Recommendations**.\n"
-            "- If none of the above fit clearly: create logical sections based on the natural structure of the content, using bold headers for each distinct topic."
+            "Extract and structure all factual details from the following document (names, dates, numbers, organizations, titles, contact info, etc.) into clearly labeled Markdown sections. Use **bold** for field labels and *italics* for dates. Use nested bullets for grouped/related details. Do not summarize or interpret — extract as-is, just organized.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the extracted details, nothing else."
+        ),
+        "action_items": (
+            "Identify all action items, tasks, deadlines, or next steps mentioned or implied in the following document. Present each as a checkbox bullet with a bolded short action title, followed by any relevant deadline/date in italics.\n\n"
+            "Format:\n"
+            "- [ ] **Action title** — details (*deadline if any*)\n\n"
+            "If no explicit action items exist, infer reasonable follow-up actions based on the document's context and label them \"(inferred)\".\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the action item list, nothing else."
+        ),
+        "faq": (
+            "Generate a set of 5-8 frequently asked questions (and answers) based on the following document. Questions should cover the most important or commonly-asked aspects of the content. Format each as:\n\n"
+            "**Q: [question]**\n"
+            "A: [answer]\n\n"
+            "Keep answers concise (1-3 sentences) and grounded strictly in the document content.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the FAQ list, nothing else."
+        ),
+        "timeline": (
+            "Extract a chronological timeline or chapter breakdown from the following document. If the document has explicit dates/events, list them in order. If it has sections/chapters instead of dates, list them in their logical sequence.\n\n"
+            "Format each entry as:\n"
+            "**[Date or Chapter #]** — Title/Event\n"
+            "  - Brief description\n\n"
+            "Order entries chronologically or sequentially as they appear in the source.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the timeline, nothing else."
+        ),
+        "mcq": (
+            "Generate 5 multiple-choice questions based on the following document to test understanding of its key content. Each question should have 4 options (A-D), only one correct answer, and increasing difficulty.\n\n"
+            "Format each as:\n"
+            "**Q1. [question]**\n"
+            "A) option\n"
+            "B) option\n"
+            "C) option\n"
+            "D) option\n"
+            "**Answer:** [correct letter] — [1-line explanation]\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the quiz, nothing else."
+        ),
+        "structured_json": (
+            "Extract all relevant information from the following document and return it strictly as valid JSON. Do not include any explanation, commentary, or Markdown formatting — output raw JSON only.\n\n"
+            "Use this general schema, adapting fields to fit the actual document type detected:\n"
+            "{\n"
+            "  \"document_type\": \"string\",\n"
+            "  \"file_name\": \"string\",\n"
+            "  \"summary\": \"string\",\n"
+            "  \"sections\": [\n    {\n      \"title\": \"string\",\n      \"entries\": [\n        {\n          \"name\": \"string\",\n          \"subtitle\": \"string\",\n          \"date_range\": \"string\",\n          \"details\": [\"string\"]\n        }\n      ]\n    }\n  ]\n}\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the JSON object, nothing else."
         )
     }
 
@@ -60,7 +115,10 @@ class SummaryGeneratorService:
 
         def get_single_summary(stype: str):
             instruction = SummaryGeneratorService.SUMMARY_PROMPTS.get(stype, "Summarize the following text effectively.")
-            prompt = f"{instruction}\n\nContent:\n{content[:4000]}"
+            prompt = instruction.format(
+                file_name=filename or "source",
+                extracted_text=content[:4000]
+            )
             return LLMProviderService.generate_completion(prompt=prompt, model_id=model_id, filename=filename)
 
         # Generate each summary type in parallel to prevent gateway timeout

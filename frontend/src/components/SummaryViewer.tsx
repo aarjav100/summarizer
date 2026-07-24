@@ -7,17 +7,20 @@ interface SummaryViewerProps {
   selectedModel: string;
   isLoading: boolean;
   onGenerateNewTypes: (types: string[]) => void;
+  activeFileName?: string;
 }
 
 export const SummaryViewer: React.FC<SummaryViewerProps> = ({
   summaries,
   selectedModel,
   isLoading,
-  onGenerateNewTypes
+  onGenerateNewTypes,
+  activeFileName
 }) => {
   const [selectedLabel, setSelectedLabel] = useState<string>("Short (2–3 lines)");
   const [isScanning, setIsScanning] = useState(false);
   const [generatedFormats, setGeneratedFormats] = useState<string[]>([]);
+  const [downloadFormat, setDownloadFormat] = useState<string>("txt");
 
   const formatControls = [
     { label: "Short (2–3 lines)", id: "short", icon: "💥" },
@@ -56,6 +59,123 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
   const activeControl = formatControls.find((f) => f.label === selectedLabel);
   const isGenerated = activeControl ? summaries.some((s) => s.summary_type === activeControl.id) : false;
   const activeSummary = activeControl ? summaries.find((s) => s.summary_type === activeControl.id) : null;
+
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const stripMarkdown = (md: string) => {
+    return md
+      .replace(/\*\*(.*?)\*\*/g, "$1")
+      .replace(/\*(.*?)\*/g, "$1")
+      .replace(/^#+\s/gm, "")
+      .replace(/^- \[ \]/gm, "☐")
+      .replace(/^- /gm, "• ");
+  };
+
+  const generatePDF = (content: string, fileName: string) => {
+    const opt = {
+      margin: 0.5,
+      filename: `${fileName}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+    
+    const container = document.createElement('div');
+    container.style.padding = '40px';
+    container.style.fontFamily = 'Georgia, serif';
+    container.style.color = '#1C2623';
+    container.style.backgroundColor = '#EDE6D6';
+    container.style.lineHeight = '1.6';
+    
+    let htmlContent = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^- (.*)/gm, '<li>$1</li>')
+      .replace(/\n\n/g, '<p></p>')
+      .replace(/\n/g, '<br/>');
+    
+    container.innerHTML = `
+      <h2 style="color: #A73E2F; border-bottom: 2px solid #A73E2F; padding-bottom: 10px; font-family: Georgia, serif;">${fileName}</h2>
+      <div style="font-size: 14px;">${htmlContent}</div>
+    `;
+
+    if ((window as any).html2pdf) {
+      (window as any).html2pdf().from(container).set(opt).save();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      document.head.appendChild(script);
+      script.onload = () => {
+        (window as any).html2pdf().from(container).set(opt).save();
+      };
+    }
+  };
+
+  const generateDocx = (content: string, fileName: string) => {
+    let htmlContent = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^- (.*)/gm, '<li>$1</li>')
+      .replace(/\n\n/g, '<p></p>')
+      .replace(/\n/g, '<br/>');
+
+    const htmlString = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+        <head>
+          <title>${fileName}</title>
+          <style>
+            body { font-family: Arial, sans-serif; }
+            strong { color: #A73E2F; }
+          </style>
+        </head>
+        <body>
+          <h2>${fileName}</h2>
+          <div>${htmlContent}</div>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlString], { type: 'application/msword' });
+    triggerDownload(blob, `${fileName}.doc`);
+  };
+
+  const handleDownload = () => {
+    if (!activeSummary) return;
+    const rawFileName = activeFileName || "synthesis_output";
+    const cleanFileName = rawFileName.replace(/\.[^/.]+$/, "");
+    const formattedName = `${cleanFileName}_${activeControl?.id || "summary"}`;
+
+    switch (downloadFormat) {
+      case "txt": {
+        const blob = new Blob([stripMarkdown(activeSummary.content)], { type: "text/plain" });
+        triggerDownload(blob, `${formattedName}.txt`);
+        break;
+      }
+      case "md": {
+        const blob = new Blob([activeSummary.content], { type: "text/markdown" });
+        triggerDownload(blob, `${formattedName}.md`);
+        break;
+      }
+      case "json": {
+        const blob = new Blob([activeSummary.content], { type: "application/json" });
+        triggerDownload(blob, `${formattedName}.json`);
+        break;
+      }
+      case "pdf":
+        generatePDF(activeSummary.content, formattedName);
+        break;
+      case "docx":
+        generateDocx(activeSummary.content, formattedName);
+        break;
+    }
+  };
 
   const cleanText = (text: string) => {
     let temp = text;
@@ -281,31 +401,80 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                 {selectedLabel.toUpperCase()}
               </span>
               
-              {/* Optional Re-run Action Option */}
-              <button
-                onClick={handleGenerate}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(28, 38, 35, 0.2)',
-                  color: 'var(--rust)',
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  fontSize: '11px',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--rust)';
-                  e.currentTarget.style.background = 'rgba(167, 62, 47, 0.05)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(28, 38, 35, 0.2)';
-                  e.currentTarget.style.background = 'transparent';
-                }}
-              >
-                ↻ RE-RUN
-              </button>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <select
+                  value={downloadFormat}
+                  onChange={(e) => setDownloadFormat(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(28, 38, 35, 0.2)',
+                    color: 'var(--rust)',
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    fontSize: '11.5px',
+                    padding: '4px 8px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="txt">TXT</option>
+                  <option value="md">MD</option>
+                  <option value="json">JSON</option>
+                  <option value="pdf">PDF</option>
+                  <option value="docx">DOCX</option>
+                </select>
+
+                <button
+                  onClick={handleDownload}
+                  style={{
+                    background: 'var(--rust)',
+                    border: '1px solid var(--rust)',
+                    color: '#EDE6D6',
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    fontSize: '11px',
+                    padding: '5px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    letterSpacing: '0.02em'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'var(--ink)';
+                    e.currentTarget.style.borderColor = 'var(--ink)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'var(--rust)';
+                    e.currentTarget.style.borderColor = 'var(--rust)';
+                  }}
+                >
+                  📥 DOWNLOAD
+                </button>
+
+                <button
+                  onClick={handleGenerate}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(28, 38, 35, 0.2)',
+                    color: 'var(--rust)',
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    fontSize: '11px',
+                    padding: '4px 12px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--rust)';
+                    e.currentTarget.style.background = 'rgba(167, 62, 47, 0.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(28, 38, 35, 0.2)';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  ↻ RE-RUN
+                </button>
+              </div>
             </div>
             
             <div className="text-content">

@@ -305,6 +305,7 @@ export const App: React.FC = () => {
               summaries={summaries}
               selectedModel={selectedModel}
               isLoading={isLoadingSummary}
+              activeFileName={selectedFile?.filename}
               onGenerateNewTypes={(types) => {
                 if (selectedFile) loadSummaryForFile(selectedFile.id, selectedModel, types);
               }}
