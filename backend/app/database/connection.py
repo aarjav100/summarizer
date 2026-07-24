@@ -2,12 +2,25 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.config.settings import settings
 from app.database.models import Base
+import socket
 
-# SQLAlchemy Engine using psycopg (v3) driver
-# psycopg v3 natively supports SNI which is required by Supabase Supavisor pooler
+# Force IPv4 resolution for Supabase direct connections
+# Render's network may fail to connect over IPv6 to Supabase
+_original_getaddrinfo = socket.getaddrinfo
+
+def _ipv4_preferred_getaddrinfo(*args, **kwargs):
+    """Prefer IPv4 addresses for Supabase connections (workaround for Render)."""
+    responses = _original_getaddrinfo(*args, **kwargs)
+    ipv4 = [r for r in responses if r[0] == socket.AF_INET]
+    return ipv4 if ipv4 else responses
+
+if "supabase.co" in settings.DATABASE_URL:
+    socket.getaddrinfo = _ipv4_preferred_getaddrinfo
+
+# SQLAlchemy Engine using psycopg (v3) driver with direct Supabase connection
 db_url = settings.DATABASE_URL
 
-# Ensure SQLAlchemy uses the psycopg (v3) driver, not psycopg2
+# Ensure SQLAlchemy uses the psycopg (v3) driver
 # Convert: postgresql:// → postgresql+psycopg://
 if db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)

@@ -61,15 +61,8 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Dynamically rewrite direct Supabase host to use Connection Pooler
-# The pooler requires SNI, which is handled by psycopg (v3) driver in connection.py
-if "db.fyriayifjvgqjpzfwsvm.supabase.co" in settings.DATABASE_URL:
-    settings.DATABASE_URL = settings.DATABASE_URL.replace(
-        "db.fyriayifjvgqjpzfwsvm.supabase.co", 
-        "aws-0-ap-northeast-1.pooler.supabase.com"
-    ).replace(":5432", ":6543")
-
-# Ensure SSL is enabled for Supabase connections (psycopg v3 reads this from the URL)
-if "pooler.supabase.com" in settings.DATABASE_URL and "sslmode" not in settings.DATABASE_URL:
+# Ensure SSL is enabled for Supabase connections (both direct and pooler)
+if "supabase" in settings.DATABASE_URL and "sslmode" not in settings.DATABASE_URL:
     separator = "&" if "?" in settings.DATABASE_URL else "?"
     settings.DATABASE_URL += f"{separator}sslmode=require"
+
