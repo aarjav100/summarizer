@@ -458,7 +458,7 @@ body {
   font-size: 26px;
   font-weight: 600;
   font-style: italic;
-  color: var(--ink);
+  color: #EDE6D6;
   margin-bottom: 10px;
 }
 
@@ -490,7 +490,7 @@ body {
 .reading-result .text-content {
   font-size: 16.5px;
   line-height: 1.85;
-  color: var(--ink);
+  color: #EDE6D6;
   font-family: 'Playfair Display', Georgia, serif;
 }
 
