@@ -252,10 +252,21 @@ class LLMProviderService:
             import re
             import json
             
-            # Clean and split into sentences
-            sentences = re.split(r'(?<=[.!?])\s+', content_extracted)
-            sentences = [s.strip() for s in sentences if s.strip()]
-            words = content_extracted.split()
+            # Clean page headers and normalize newlines
+            cleaned_content = re.sub(r'---\s*Page\s*\d+\s*---\s*', '', content_extracted)
+            cleaned_content = cleaned_content.strip()
+            
+            # Split by line boundaries first to avoid merging separate lines/concepts
+            raw_lines = [l.strip() for l in cleaned_content.split('\n') if l.strip()]
+            sentences = []
+            for line in raw_lines:
+                # Split each line by sentence punctuation
+                for s in re.split(r'(?<=[.!?])\s+', line):
+                    s_cleaned = s.strip()
+                    if s_cleaned:
+                        sentences.append(s_cleaned)
+            
+            words = cleaned_content.split()
             word_count = len(words)
 
             # Route conversational queries
@@ -322,7 +333,7 @@ class LLMProviderService:
                 return "\n\n".join(faq_pairs)
                 
             elif "timeline" in prompt_lower:
-                years = re.findall(r'\b(19\d\d|20\d\d)\b', content_extracted)
+                years = re.findall(r'\b(19\d\d|20\d\d)\b', cleaned_content)
                 years = sorted(list(set(years)))
                 if years:
                     timeline_events = []
@@ -361,8 +372,21 @@ class LLMProviderService:
                 return "\n".join(f"- {p}" for p in points)
                 
             elif "takeaway" in prompt_lower:
-                points = sentences[:4]
-                return "\n".join(f"{idx+1}. **Key Insight**: {p}" for idx, p in enumerate(points))
+                points = sentences[:5]
+                formatted_points = []
+                for idx, p in enumerate(points):
+                    if ":" in p and len(p.split(":", 1)[0]) < 35 and "/" not in p.split(":", 1)[0]:
+                        parts = p.split(":", 1)
+                        label = parts[0].strip()
+                        val = parts[1].strip()
+                        if label:
+                            label = label[0].upper() + label[1:]
+                        if val:
+                            val = val[0].upper() + val[1:]
+                        formatted_points.append(f"{idx+1}. **{label}**: {val}")
+                    else:
+                        formatted_points.append(f"{idx+1}. **Key Insight**: {p}")
+                return "\n".join(formatted_points)
                 
             elif "mcq" in prompt_lower:
                 topic = words[0] if words else "the document content"
