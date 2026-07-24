@@ -89,27 +89,24 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       method: 'POST',
       body: formData
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then((err) => {
+            throw new Error(err.detail || `Upload failed with status ${res.status}`);
+          });
+        }
+        return res.json();
+      })
       .then((data) => {
         setIsUploading(false);
         onUploadSuccess(data);
         onClose();
       })
-      .catch(() => {
-        // Fallback mock if backend is down
-        const mockFile = {
-          id: `file-${Date.now().toString().slice(-4)}`,
-          project_id: projectId,
-          filename: name,
-          file_type: type,
-          file_size_bytes: size,
-          status: 'completed' as const,
-          is_favorite: false,
-          created_at: new Date().toISOString()
-        };
+      .catch((err) => {
         setIsUploading(false);
-        onUploadSuccess(mockFile);
-        onClose();
+        // Show error to the user so they know the upload didn't persist
+        alert(`Upload error: ${err.message || 'Could not save file. Please check the backend connection.'}`);
+        console.error('Upload failed:', err);
       });
   };
 

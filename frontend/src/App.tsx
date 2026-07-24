@@ -94,24 +94,32 @@ export const App: React.FC = () => {
     ]);
 
     // Fetch files from database API on load
+    fetchFilesFromAPI();
+  }, []);
+
+  const fetchFilesFromAPI = () => {
     fetch(`${API_BASE_URL}/api/v1/files?project_id=proj-1`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setFiles(data);
-          setSelectedFile(data[0]);
-          loadSummaryForFile(data[0].id, 'auto-router');
+          // Only auto-select first file if no file is currently selected
+          setSelectedFile((prev) => {
+            if (!prev) {
+              loadSummaryForFile(data[0].id, 'auto-router');
+              return data[0];
+            }
+            // If the currently selected file still exists in the list, keep it
+            const stillExists = data.find((f: FileItem) => f.id === prev.id);
+            return stillExists || data[0];
+          });
         } else {
-          const defaultFiles: FileItem[] = [
-            { id: 'file-101', project_id: 'proj-1', filename: 'LLM_Multimodal_RAG_Architecture.pdf', file_type: 'pdf', file_size_bytes: 4200000, status: 'completed', is_favorite: true, created_at: new Date().toISOString() },
-            { id: 'file-102', project_id: 'proj-1', filename: 'System_Architecture_Diagram.png', file_type: 'image', file_size_bytes: 1500000, status: 'completed', is_favorite: false, created_at: new Date().toISOString() }
-          ];
-          setFiles(defaultFiles);
-          setSelectedFile(defaultFiles[0]);
-          loadSummaryForFile(defaultFiles[0].id, 'auto-router');
+          // Empty array from DB — no files uploaded yet, keep list empty
+          setFiles([]);
         }
       })
       .catch(() => {
+        // Backend completely unreachable — show fallback demo files
         const defaultFiles: FileItem[] = [
           { id: 'file-101', project_id: 'proj-1', filename: 'LLM_Multimodal_RAG_Architecture.pdf', file_type: 'pdf', file_size_bytes: 4200000, status: 'completed', is_favorite: true, created_at: new Date().toISOString() },
           { id: 'file-102', project_id: 'proj-1', filename: 'System_Architecture_Diagram.png', file_type: 'image', file_size_bytes: 1500000, status: 'completed', is_favorite: false, created_at: new Date().toISOString() }
@@ -120,7 +128,7 @@ export const App: React.FC = () => {
         setSelectedFile(defaultFiles[0]);
         loadSummaryForFile(defaultFiles[0].id, 'auto-router');
       });
-  }, []);
+  };
 
   const loadSummaryForFile = (fileId: string, modelId: string, customTypes: string[] = ['short', 'medium', 'detailed', 'bullet', 'takeaways', 'action_items', 'faq', 'timeline', 'mcq', 'structured_json']) => {
     setIsLoadingSummary(true);
@@ -237,9 +245,13 @@ export const App: React.FC = () => {
   };
 
   const handleUploadSuccess = (newFile: FileItem) => {
+    // Optimistically add the file to the UI immediately
     setFiles((prev) => [newFile, ...prev]);
     setSelectedFile(newFile);
     loadSummaryForFile(newFile.id, selectedModel);
+
+    // Re-fetch from the database to ensure consistency after a short delay
+    setTimeout(() => fetchFilesFromAPI(), 1000);
   };
 
   const handleToggleFavorite = (fileId: string) => {
