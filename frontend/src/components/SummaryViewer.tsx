@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SummaryItem } from '../types';
 import ReactMarkdown from 'react-markdown';
 
@@ -21,20 +21,27 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
   const [isScanning, setIsScanning] = useState(false);
   const [generatedFormats, setGeneratedFormats] = useState<string[]>([]);
   const [downloadFormat, setDownloadFormat] = useState<string>("txt");
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [quizState, setQuizState] = useState<Record<number, { selectedOption: string | null, revealed: boolean }>>({});
 
-  const formatControls = [
+  const primaryFormats = [
     { label: "Short (2–3 lines)", id: "short", icon: "💥" },
     { label: "Medium Summary", id: "medium", icon: "📄" },
     { label: "Detailed Summary", id: "detailed", icon: "📘" },
     { label: "Bullet Points", id: "bullet", icon: "📋" },
     { label: "Key Takeaways", id: "takeaways", icon: "✔️" },
+    { label: "MCQs & Quiz", id: "mcq", icon: "🎓" }
+  ];
+
+  const overflowFormats = [
     { label: "Extracted Details", id: "extracted_details", icon: "🔎" },
     { label: "Action Items", id: "action_items", icon: "☑️" },
     { label: "Generated FAQ", id: "faq", icon: "❓" },
     { label: "Timeline & Chapters", id: "timeline", icon: "🕒" },
-    { label: "MCQs & Quiz", id: "mcq", icon: "🎓" },
     { label: "Structured JSON", id: "structured_json", icon: "✨" }
   ];
+
+  const formatControls = [...primaryFormats, ...overflowFormats];
 
   const handleSelectFormat = (label: string) => {
     setSelectedLabel(label);
@@ -59,6 +66,258 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
   const activeControl = formatControls.find((f) => f.label === selectedLabel);
   const isGenerated = activeControl ? summaries.some((s) => s.summary_type === activeControl.id) : false;
   const activeSummary = activeControl ? summaries.find((s) => s.summary_type === activeControl.id) : null;
+
+  useEffect(() => {
+    setQuizState({});
+  }, [activeSummary]);
+
+  interface MCQQuestion {
+    questionNumber: string;
+    questionText: string;
+    options: { key: string; text: string }[];
+    correctAnswer: string;
+    explanation: string;
+  }
+
+  const parseMCQ = (content: string): MCQQuestion[] => {
+    const questions: MCQQuestion[] = [];
+    const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    let currentQuestion: MCQQuestion | null = null;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      const qMatch = line.match(/^\*\*Q(\d+)\.\s*(.*)\*\*/i) || line.match(/^Q(\d+)\.\s*(.*)/i) || line.match(/^\*\*Q(\d+):\s*(.*)\*\*/i);
+      if (qMatch) {
+        if (currentQuestion) {
+          questions.push(currentQuestion);
+        }
+        currentQuestion = {
+          questionNumber: qMatch[1],
+          questionText: qMatch[2],
+          options: [],
+          correctAnswer: "",
+          explanation: ""
+        };
+        continue;
+      }
+      
+      const optMatch = line.match(/^([A-D])\)\s*(.*)/i) || line.match(/^([A-D])\.\s*(.*)/i);
+      if (optMatch && currentQuestion) {
+        currentQuestion.options.push({
+          key: optMatch[1].toUpperCase(),
+          text: optMatch[2]
+        });
+        continue;
+      }
+      
+      const ansMatch = line.match(/^(?:\*\*Answer:\*\*|Answer:)\s*([A-D])(?:\s*[-—:\)]\s*(.*))?/i);
+      if (ansMatch && currentQuestion) {
+        currentQuestion.correctAnswer = ansMatch[1].toUpperCase();
+        currentQuestion.explanation = ansMatch[2] ? ansMatch[2].trim() : "";
+        continue;
+      }
+    }
+    
+    if (currentQuestion) {
+      questions.push(currentQuestion);
+    }
+    
+    return questions;
+  };
+
+  const renderMCQ = (content: string) => {
+    const questions = parseMCQ(content);
+    if (questions.length === 0) {
+      return (
+        <div style={{ fontSize: '15.5px', lineHeight: '1.8', color: 'var(--ink)' }}>
+          <ReactMarkdown>{content}</ReactMarkdown>
+        </div>
+      );
+    }
+    
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <h3 style={{ 
+          fontFamily: "'Playfair Display', serif", 
+          fontSize: '22px', 
+          color: 'var(--rust)', 
+          marginBottom: '8px',
+          fontStyle: 'italic'
+        }}>
+          Knowledge Check Quiz
+        </h3>
+        
+        {questions.map((q, qIdx) => {
+          const state = quizState[qIdx] || { selectedOption: null, revealed: false };
+          const isCorrect = state.selectedOption === q.correctAnswer;
+          
+          return (
+            <div 
+              key={qIdx}
+              style={{
+                background: 'rgba(28, 38, 35, 0.03)',
+                border: '1px solid rgba(28, 38, 35, 0.1)',
+                borderRadius: '8px',
+                padding: '20px',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px'
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--ink)' }}>
+                Q{q.questionNumber || (qIdx + 1)}. {q.questionText}
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {q.options.map((opt) => {
+                  const isOptSelected = state.selectedOption === opt.key;
+                  let optStyle: React.CSSProperties = {
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(28, 38, 35, 0.1)',
+                    background: 'white',
+                    cursor: 'pointer',
+                    fontSize: '13.5px',
+                    transition: 'all 0.15s ease',
+                    textAlign: 'left'
+                  };
+                  
+                  if (isOptSelected) {
+                    if (state.revealed) {
+                      optStyle.borderColor = opt.key === q.correctAnswer ? '#2E7D32' : '#C62828';
+                      optStyle.background = opt.key === q.correctAnswer ? '#E8F5E9' : '#FFEBEE';
+                      optStyle.color = opt.key === q.correctAnswer ? '#2E7D32' : '#C62828';
+                      optStyle.fontWeight = 600;
+                    } else {
+                      optStyle.borderColor = 'var(--rust)';
+                      optStyle.background = 'rgba(167, 62, 47, 0.05)';
+                      optStyle.color = 'var(--rust)';
+                      optStyle.fontWeight = 600;
+                    }
+                  } else if (state.revealed && opt.key === q.correctAnswer) {
+                    optStyle.borderColor = '#2E7D32';
+                    optStyle.background = '#E8F5E9';
+                    optStyle.color = '#2E7D32';
+                    optStyle.fontWeight = 600;
+                  }
+                  
+                  return (
+                    <button
+                      key={opt.key}
+                      onClick={() => {
+                        if (state.revealed) return;
+                        setQuizState(prev => ({
+                          ...prev,
+                          [qIdx]: { ...state, selectedOption: opt.key }
+                        }));
+                      }}
+                      style={optStyle}
+                      disabled={state.revealed}
+                    >
+                      <span style={{
+                        display: 'inline-flex',
+                        width: '20px',
+                        height: '20px',
+                        borderRadius: '50%',
+                        border: '1px solid currentColor',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        flexShrink: 0
+                      }}>
+                        {opt.key}
+                      </span>
+                      <span>{opt.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                {!state.revealed ? (
+                  <button
+                    onClick={() => {
+                      setQuizState(prev => ({
+                        ...prev,
+                        [qIdx]: { ...state, revealed: true }
+                      }));
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--rust)',
+                      color: 'var(--rust)',
+                      fontSize: '11.5px',
+                      padding: '4px 12px',
+                      borderRadius: '4px',
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      cursor: state.selectedOption ? 'pointer' : 'not-allowed',
+                      opacity: state.selectedOption ? 1 : 0.5
+                    }}
+                    disabled={!state.selectedOption}
+                  >
+                    CHECK ANSWER
+                  </button>
+                ) : (
+                  <span style={{ 
+                    fontFamily: 'IBM Plex Mono, monospace', 
+                    fontSize: '11.5px', 
+                    fontWeight: 'bold',
+                    color: isCorrect ? '#2E7D32' : '#C62828'
+                  }}>
+                    {isCorrect ? '✅ CORRECT' : `❌ INCORRECT (Correct: ${q.correctAnswer})`}
+                  </span>
+                )}
+                
+                {state.revealed && (
+                  <button
+                    onClick={() => {
+                      setQuizState(prev => ({
+                        ...prev,
+                        [qIdx]: { selectedOption: null, revealed: false }
+                      }));
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#7A8E8A',
+                      fontSize: '11px',
+                      fontFamily: 'IBM Plex Mono, monospace',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    RESET
+                  </button>
+                )}
+              </div>
+              
+              {state.revealed && q.explanation && (
+                <div style={{ 
+                  marginTop: '6px', 
+                  padding: '12px 16px', 
+                  borderRadius: '6px', 
+                  background: 'rgba(28, 38, 35, 0.05)',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  color: 'var(--ink)',
+                  borderLeft: '3px solid var(--gold)'
+                }}>
+                  <strong>Explanation:</strong> {q.explanation}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
@@ -296,192 +555,338 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
     );
   };
 
+  const isMoreActive = overflowFormats.some(f => f.label === selectedLabel);
+
   return (
     <div style={{ flex: 1, position: 'relative' }} className="flex flex-col">
       {/* Desk Headers */}
       <span className="section-label">THE DESK</span>
       <h2 className="section-title text-2xl font-bold font-serif mb-4">Press a Format to Begin Synthesis</h2>
 
-      {/* Format Switch Pills */}
-      <div className="format-pills">
-        {formatControls.map((ctrl) => {
-          const isSelected = selectedLabel === ctrl.label;
-          return (
-            <button
-              key={ctrl.id}
-              onClick={() => handleSelectFormat(ctrl.label)}
-              className={`pill-switch ${isSelected ? 'selected' : ''}`}
-            >
-              <span>{ctrl.icon}</span>
-              <span>{ctrl.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Reading Canvas Paper Area */}
-      <div 
-        className="reading-canvas"
-        style={{
-          position: 'relative',
-          padding: '48px 56px',
-          maxWidth: '740px', // ~640px content width + 2*50px padding
-          margin: '0 auto',
-          width: '100%',
-          boxSizing: 'border-box',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Dynamic Top Accent Bar matching format status */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'var(--rust)' }} />
-
-        {isLoading || isScanning ? (
-          <div className="blank-state">
-            <span className="icon text-2xl">⏳</span>
-            <div className="headline">Scanning RAG ledger...</div>
-            <div className="sub text-sm">
-              Drawing relevant vector context from checked document library index chunks.
-            </div>
-          </div>
-        ) : !isGenerated || !activeSummary ? (
-          /* Blank Page Empty State with explicit GENERATE OUTPUT Option */
-          <div className="blank-state space-y-4">
-            <span className="icon text-3xl font-mono text-[#A73E2F]">🗎✃</span>
-            <div className="headline text-2xl font-serif font-bold italic">The page is still blank.</div>
-            <p className="text-sm font-sans leading-relaxed text-[#5C6773] font-medium max-w-lg">
-              You've stamped <span className="text-[#A73E2F] font-bold">{selectedLabel}</span> as the format. Synthesis will begin once a document is opened from the catalog on the left — the summary will be set here, on the desk, exactly as it will read in your notes.
-            </p>
-
-            {/* Explicit Generate Output button */}
-            <button
-              type="button"
-              onClick={handleGenerate}
-              className="btn-primary"
-              style={{
-                marginTop: '12px',
-                background: 'var(--rust)',
-                color: '#EDE6D6',
-                border: '1px solid var(--gold)',
-                fontFamily: 'IBM Plex Mono, monospace',
-                fontSize: '12.5px',
-                letterSpacing: '0.04em'
-              }}
-            >
-              RUN SYNTHESIS CORE
-            </button>
-          </div>
-        ) : (
-          /* Rendered Result Page */
-          <div className="reading-result">
-            {/* Header row with Re-run actions and tag badge */}
-            <div 
-              style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center', 
-                paddingBottom: '12px', 
-                borderBottom: '1px solid rgba(28, 38, 35, 0.1)',
-                marginBottom: '24px'
-              }}
-            >
-              <span 
-                className="tag-badge"
+      {/* Main content split: sidebar (left) and canvas (right) */}
+      <div style={{ display: 'flex', gap: '24px', width: '100%', alignItems: 'flex-start' }}>
+        
+        {/* Sidebar: Primary formats + More Formats Dropdown */}
+        <div style={{ width: '170px', minWidth: '170px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {primaryFormats.map((ctrl) => {
+            const isSelected = selectedLabel === ctrl.label;
+            return (
+              <button
+                key={ctrl.id}
+                onClick={() => handleSelectFormat(ctrl.label)}
                 style={{
-                  margin: 0,
-                  fontSize: '11px',
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  letterSpacing: '0.08em',
-                  color: 'var(--rust)',
-                  border: '1px solid var(--rust)',
-                  padding: '3px 10px',
-                  borderRadius: '2px',
-                  textTransform: 'uppercase'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: isSelected ? 'var(--rust)' : 'transparent',
+                  border: 'none',
+                  color: isSelected ? '#EDE6D6' : '#7A8E8A',
+                  padding: '10px 14px',
+                  fontSize: '13px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.2s ease',
+                  fontWeight: isSelected ? 600 : 500
+                }}
+                onMouseEnter={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.background = 'rgba(28, 38, 35, 0.05)';
+                    e.currentTarget.style.color = '#EDE6D6';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isSelected) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#7A8E8A';
+                  }
                 }}
               >
-                {selectedLabel.toUpperCase()}
-              </span>
-              
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <select
-                  value={downloadFormat}
-                  onChange={(e) => setDownloadFormat(e.target.value)}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(28, 38, 35, 0.2)',
-                    color: 'var(--rust)',
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: '11.5px',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                >
-                  <option value="txt">TXT</option>
-                  <option value="md">MD</option>
-                  <option value="json">JSON</option>
-                  <option value="pdf">PDF</option>
-                  <option value="docx">DOCX</option>
-                </select>
+                <span>{ctrl.icon}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ctrl.label}</span>
+              </button>
+            );
+          })}
 
-                <button
-                  onClick={handleDownload}
-                  style={{
-                    background: 'var(--rust)',
-                    border: '1px solid var(--rust)',
-                    color: '#EDE6D6',
-                    fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: '11px',
-                    padding: '5px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    letterSpacing: '0.02em'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'var(--ink)';
-                    e.currentTarget.style.borderColor = 'var(--ink)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--rust)';
-                    e.currentTarget.style.borderColor = 'var(--rust)';
-                  }}
-                >
-                  📥 DOWNLOAD
-                </button>
+          {/* More Formats Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setIsMoreOpen(!isMoreOpen)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                gap: '8px',
+                background: isMoreActive ? 'var(--rust)' : 'transparent',
+                border: 'none',
+                color: isMoreActive ? '#EDE6D6' : '#7A8E8A',
+                padding: '10px 14px',
+                fontSize: '13px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s ease',
+                fontWeight: isMoreActive ? 600 : 500
+              }}
+              onMouseEnter={(e) => {
+                if (!isMoreActive) {
+                  e.currentTarget.style.background = 'rgba(28, 38, 35, 0.05)';
+                  e.currentTarget.style.color = '#EDE6D6';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isMoreActive) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#7A8E8A';
+                }
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                <span>{isMoreActive ? activeControl?.icon : "📁"}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {isMoreActive ? activeControl?.label : "More Formats"}
+                </span>
+              </div>
+              <span>{isMoreOpen ? "▴" : "▾"}</span>
+            </button>
 
+            {isMoreOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '105%',
+                  left: 0,
+                  right: 0,
+                  background: 'var(--panel)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                  zIndex: 10,
+                  padding: '4px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                {overflowFormats.map((ctrl) => {
+                  const isSelected = selectedLabel === ctrl.label;
+                  return (
+                    <button
+                      key={ctrl.id}
+                      onClick={() => {
+                        handleSelectFormat(ctrl.label);
+                        setIsMoreOpen(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        background: isSelected ? 'var(--rust)' : 'transparent',
+                        border: 'none',
+                        color: isSelected ? '#EDE6D6' : '#7A8E8A',
+                        padding: '8px 12px',
+                        fontSize: '12.5px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease',
+                        width: '100%',
+                        fontWeight: isSelected ? 600 : 500
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = 'rgba(28, 38, 35, 0.08)';
+                          e.currentTarget.style.color = '#EDE6D6';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = '#7A8E8A';
+                        }
+                      }}
+                    >
+                      <span>{ctrl.icon}</span>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ctrl.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content Canvas Area (Right) */}
+        <div style={{ flex: 1 }}>
+          <div 
+            className="reading-canvas"
+            style={{
+              position: 'relative',
+              padding: '48px 56px',
+              width: '100%',
+              boxSizing: 'border-box',
+              overflow: 'hidden',
+              minHeight: '480px'
+            }}
+          >
+            {/* Dynamic Top Accent Bar matching format status */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'var(--rust)' }} />
+
+            {isLoading || isScanning ? (
+              <div className="blank-state">
+                <span className="icon text-2xl">⏳</span>
+                <div className="headline">Scanning RAG ledger...</div>
+                <div className="sub text-sm">
+                  Drawing relevant vector context from checked document library index chunks.
+                </div>
+              </div>
+            ) : !isGenerated || !activeSummary ? (
+              /* Blank Page Empty State with explicit GENERATE OUTPUT Option */
+              <div className="blank-state space-y-4">
+                <span className="icon text-3xl font-mono text-[#A73E2F]">🗎✃</span>
+                <div className="headline text-2xl font-serif font-bold italic">The page is still blank.</div>
+                <p className="text-sm font-sans leading-relaxed text-[#5C6773] font-medium max-w-lg">
+                  You've stamped <span className="text-[#A73E2F] font-bold">{selectedLabel}</span> as the format. Synthesis will begin once a document is opened from the catalog on the left — the summary will be set here, on the desk, exactly as it will read in your notes.
+                </p>
+
+                {/* Explicit Generate Output button */}
                 <button
+                  type="button"
                   onClick={handleGenerate}
+                  className="btn-primary"
                   style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(28, 38, 35, 0.2)',
-                    color: 'var(--rust)',
+                    marginTop: '12px',
+                    background: 'var(--rust)',
+                    color: '#EDE6D6',
+                    border: '1px solid var(--gold)',
                     fontFamily: 'IBM Plex Mono, monospace',
-                    fontSize: '11px',
-                    padding: '4px 12px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'var(--rust)';
-                    e.currentTarget.style.background = 'rgba(167, 62, 47, 0.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(28, 38, 35, 0.2)';
-                    e.currentTarget.style.background = 'transparent';
+                    fontSize: '12.5px',
+                    letterSpacing: '0.04em'
                   }}
                 >
-                  ↻ RE-RUN
+                  RUN SYNTHESIS CORE
                 </button>
               </div>
-            </div>
-            
-            <div className="text-content">
-              {renderContent(activeSummary.content)}
-            </div>
+            ) : (
+              /* Rendered Result Page */
+              <div className="reading-result">
+                {/* Header row with File Info and Download Toolbar */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    paddingBottom: '12px', 
+                    borderBottom: '1px solid rgba(28, 38, 35, 0.1)',
+                    marginBottom: '24px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink)' }}>
+                    <span style={{ fontSize: '16px' }}>📄</span>
+                    <span 
+                      style={{ 
+                        fontFamily: 'IBM Plex Mono, monospace', 
+                        fontSize: '12.5px', 
+                        fontWeight: 600,
+                        letterSpacing: '-0.01em',
+                        maxWidth: '240px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={activeFileName || "Unnamed Document"}
+                    >
+                      {activeFileName || "Unnamed Document"}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <select
+                      value={downloadFormat}
+                      onChange={(e) => setDownloadFormat(e.target.value)}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(28, 38, 35, 0.2)',
+                        color: 'var(--rust)',
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontSize: '11.5px',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="txt">TXT</option>
+                      <option value="md">MD</option>
+                      <option value="json">JSON</option>
+                      <option value="pdf">PDF</option>
+                      <option value="docx">DOCX</option>
+                    </select>
+
+                    <button
+                      onClick={handleDownload}
+                      style={{
+                        background: 'var(--rust)',
+                        border: '1px solid var(--rust)',
+                        color: '#EDE6D6',
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontSize: '11px',
+                        padding: '5px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        letterSpacing: '0.02em'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--ink)';
+                        e.currentTarget.style.borderColor = 'var(--ink)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'var(--rust)';
+                        e.currentTarget.style.borderColor = 'var(--rust)';
+                      }}
+                    >
+                      📥 DOWNLOAD
+                    </button>
+
+                    <button
+                      onClick={handleGenerate}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(28, 38, 35, 0.2)',
+                        color: 'var(--rust)',
+                        fontFamily: 'IBM Plex Mono, monospace',
+                        fontSize: '11px',
+                        padding: '4px 12px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--rust)';
+                        e.currentTarget.style.background = 'rgba(167, 62, 47, 0.05)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(28, 38, 35, 0.2)';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
+                      ↻ RE-RUN
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="text-content">
+                  {activeControl?.id === 'mcq'
+                    ? renderMCQ(activeSummary.content)
+                    : renderContent(activeSummary.content)}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
       </div>
     </div>
   );

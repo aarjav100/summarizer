@@ -506,8 +506,15 @@ class LLMProviderService:
                 return "\n".join(formatted_points)
                 
             elif "mcq" in prompt_lower:
-                topic = words[0] if words else "the document content"
-                return f"**1. What is a primary focus area of this document?**\n- A) {topic} [CORRECT]\n- B) Unrelated topics\n\n*Explanation: The opening sentences emphasize the significance of {topic}.*"
+                topic = words[0].title() if words else "Document Content"
+                return (
+                    f"**Q1. What is the primary focus of this document?**\n"
+                    f"A) Comprehensive analysis of {topic}\n"
+                    f"B) Historical analysis of unrelated domains\n"
+                    f"C) General overview of peripheral subjects\n"
+                    f"D) Standard dictionary definitions\n"
+                    f"**Answer:** A — The document explicitly details the framework and application of {topic}."
+                )
                 
             elif "json" in prompt_lower:
                 obj = {
@@ -576,7 +583,20 @@ class LLMProviderService:
                 return "1. **Experienced AI Developer**: Solid background in scalable RAG architectures.\n2. **Full-Stack Proficiency**: Mastery of React 19 frontends and FastAPI backends.\n3. **Production Ready**: Builds apps with Docker, Celery queues, and strict security headers."
 
             elif "mcq" in prompt_lower:
-                return "**1. Which database system is Aarjav Jain highly experienced with for vector storage?**\n- A) Supabase Postgres with pgvector [CORRECT]\n- B) MongoDB\n\n*Explanation: Aarjav Jain's resume highlights pgvector database integration for semantic retrieval.*"
+                return (
+                    f"**Q1. Which database system is Aarjav Jain highly experienced with for vector storage?**\n"
+                    f"A) MongoDB\n"
+                    f"B) Supabase Postgres with pgvector\n"
+                    f"C) SQLite\n"
+                    f"D) Redis\n"
+                    f"**Answer:** B — Aarjav Jain's resume explicitly highlights pgvector database integration for semantic retrieval.\n\n"
+                    f"**Q2. What is Aarjav Jain's degree major?**\n"
+                    f"A) B.Tech in Computer Science (AI & ML)\n"
+                    f"B) B.Tech in Information Technology\n"
+                    f"C) B.Sc in Data Science\n"
+                    f"D) Master of Computer Applications\n"
+                    f"**Answer:** A — His resume states he is pursuing B.Tech in Computer Science (AI & ML) at KIET Group of Institutions."
+                )
             elif "json" in prompt_lower:
                 return "```json\n{\n  \"candidate\": \"Aarjav Jain\",\n  \"role\": \"AI Software Engineer\",\n  \"skills\": [\"FastAPI\", \"React 19\", \"Supabase\", \"pgvector\", \"TypeScript\"],\n  \"status\": \"recommended\"\n}\n```"
             else:
@@ -626,7 +646,14 @@ class LLMProviderService:
                 return "1. **Decoupled Architecture**: Uses Celery queues for processing vision data.\n2. **Enhanced Security**: TLS 1.3 reverse proxy termination.\n3. **Unified Retrieval**: Centralized pgvector repository."
 
             elif "mcq" in prompt_lower:
-                return "**1. What process acts as the reverse proxy in the architecture?**\n- A) Nginx [CORRECT]\n- B) Uvicorn"
+                return (
+                    f"**Q1. What process acts as the reverse proxy in the architecture?**\n"
+                    f"A) Uvicorn\n"
+                    f"B) Nginx\n"
+                    f"C) Redis\n"
+                    f"D) Celery\n"
+                    f"**Answer:** B — Nginx acts as the unified security boundary and terminates secure TLS 1.3 reverse proxy connections."
+                )
             elif "json" in prompt_lower:
                 return "```json\n{\n  \"diagram_type\": \"System Architecture\",\n  \"components\": [\"React 19\", \"FastAPI\", \"Celery\", \"Redis\", \"pgvector\"],\n  \"proxy\": \"Nginx TLS 1.3\"\n}\n```"
             else:
@@ -679,7 +706,14 @@ class LLMProviderService:
                 return "1. **Zero Hallucination Guarantee**: Grounded vector search context.\n2. **Hardened SSL Connection**: TLS 1.3 reverse proxy configuration.\n3. **Cost Accountability**: Calculates cost per request dynamically."
 
             elif "mcq" in prompt_lower:
-                return "**1. What stores vector embeddings in this platform?**\n- A) pgvector [CORRECT]\n- B) SQLite\n\n*Explanation: pgvector is the chosen database extension in Supabase for vector indexing.*"
+                return (
+                    f"**Q1. What stores vector embeddings in this platform?**\n"
+                    f"A) SQLite\n"
+                    f"B) pgvector\n"
+                    f"C) Redis\n"
+                    f"D) LocalStorage\n"
+                    f"**Answer:** B — pgvector is the chosen database extension in Supabase for vector indexing."
+                )
             elif "json" in prompt_lower:
                 return "```json\n{\n  \"engine\": \"SummaMind Studio\",\n  \"status\": \"grounded\",\n  \"database\": \"pgvector\",\n  \"security\": \"TLS 1.3 Hardened\"\n}\n```"
             else:
