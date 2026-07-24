@@ -371,8 +371,8 @@ body {
 }
 
 .reading-canvas {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--panel);
+  color: #EDE6D6;
   border-radius: 4px;
   min-height: 380px;
   padding: 40px 48px;
@@ -385,7 +385,7 @@ body {
 .parsed-summary-content h2,
 .parsed-summary-content h3,
 .parsed-summary-content h4 {
-  color: var(--rust) !important;
+  color: var(--gold) !important;
   font-family: 'Playfair Display', Georgia, serif;
   font-weight: bold;
   margin-top: 1.5em;
@@ -394,7 +394,7 @@ body {
 
 .parsed-summary-content h2 {
   font-size: 1.5rem;
-  border-bottom: 1px solid rgba(167, 62, 47, 0.15);
+  border-bottom: 1px solid rgba(184, 150, 110, 0.15);
   padding-bottom: 4px;
 }
 
@@ -403,7 +403,7 @@ body {
 }
 
 .parsed-summary-content strong {
-  color: var(--rust);
+  color: var(--gold);
   font-weight: 700;
 }
 

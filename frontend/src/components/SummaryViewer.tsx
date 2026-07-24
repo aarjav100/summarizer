@@ -498,7 +498,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
               <h1 style={{ 
                 fontFamily: "'Playfair Display', serif", 
                 fontSize: '30px', 
-                color: 'var(--ink)', 
+                color: 'var(--gold)', 
                 margin: '0 0 12px 0',
                 fontWeight: 'normal',
                 letterSpacing: '-0.02em'
@@ -519,12 +519,12 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
-                      background: 'rgba(28, 38, 35, 0.05)',
-                      border: '1px solid rgba(28, 38, 35, 0.12)',
+                      background: 'rgba(237, 230, 214, 0.05)',
+                      border: '1px solid rgba(237, 230, 214, 0.15)',
                       borderRadius: '16px',
                       padding: '4px 12px',
                       fontSize: '12px',
-                      color: 'var(--ink)',
+                      color: '#EDE6D6',
                       textDecoration: 'none',
                       fontFamily: "'IBM Plex Sans', sans-serif",
                       fontWeight: 500,
@@ -532,11 +532,11 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.borderColor = 'var(--rust)';
-                      e.currentTarget.style.background = '#EDE6D6';
+                      e.currentTarget.style.background = 'rgba(237, 230, 214, 0.15)';
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(28, 38, 35, 0.12)';
-                      e.currentTarget.style.background = 'rgba(28, 38, 35, 0.05)';
+                      e.currentTarget.style.borderColor = 'rgba(237, 230, 214, 0.15)';
+                      e.currentTarget.style.background = 'rgba(237, 230, 214, 0.05)';
                     }}
                   >
                     <span>{chip.icon}</span>
@@ -548,7 +548,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
           </div>
         )}
 
-        <div style={{ fontSize: '15.5px', lineHeight: '1.8', color: 'var(--ink)' }} className="parsed-summary-content">
+        <div style={{ fontSize: '15.5px', lineHeight: '1.8', color: '#EDE6D6' }} className="parsed-summary-content">
           <ReactMarkdown>{displayBody}</ReactMarkdown>
         </div>
       </div>
@@ -782,7 +782,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                     marginBottom: '24px'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--ink)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#EDE6D6' }}>
                     <span style={{ fontSize: '16px' }}>📄</span>
                     <span 
                       style={{ 
@@ -806,9 +806,9 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                       value={downloadFormat}
                       onChange={(e) => setDownloadFormat(e.target.value)}
                       style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(28, 38, 35, 0.2)',
-                        color: 'var(--rust)',
+                        background: 'var(--background)',
+                        border: '1px solid var(--border)',
+                        color: '#EDE6D6',
                         fontFamily: 'IBM Plex Mono, monospace',
                         fontSize: '11.5px',
                         padding: '4px 8px',
