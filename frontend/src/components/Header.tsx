@@ -73,7 +73,18 @@ export const Header: React.FC<HeaderProps> = ({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '16px' }}>
         {/* Brand Logo & Name */}
         <Link to="/" className="brand" style={{ textDecoration: 'none', cursor: 'pointer' }}>
-          <div className="brand-badge">SM</div>
+          <img 
+            src="/logo.png" 
+            alt="SummaMind Studio Logo" 
+            style={{ 
+              width: '44px', 
+              height: '44px', 
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '1px solid var(--gold)',
+              boxShadow: '0 2px 8px rgba(184, 150, 110, 0.3)'
+            }} 
+          />
           <div className="brand-text">
             <div className="name">The Reading Room</div>
             <div className="tagline">

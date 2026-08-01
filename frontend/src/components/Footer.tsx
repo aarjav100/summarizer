@@ -25,24 +25,17 @@ export const Footer: React.FC = () => {
           {/* Column 1: Brand Info */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <div 
+              <img 
+                src="/logo.png" 
+                alt="SummaMind Studio Logo" 
                 style={{ 
                   width: '32px', 
                   height: '32px', 
-                  borderRadius: '50%', 
-                  border: '1px solid var(--gold)', 
-                  background: 'var(--panel)', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  fontFamily: "'Playfair Display', serif",
-                  fontWeight: 700,
-                  fontSize: '14px',
-                  color: 'var(--gold)'
-                }}
-              >
-                SM
-              </div>
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '1px solid var(--gold)'
+                }} 
+              />
               <span style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', color: 'var(--gold)', fontWeight: 'bold' }}>
                 SummaMind
               </span>
