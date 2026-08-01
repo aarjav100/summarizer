@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { Header, UserProfile } from './components/Header';
 import { UploadModal } from './components/UploadModal';
@@ -6,11 +7,19 @@ import { SummaryViewer } from './components/SummaryViewer';
 import { ChatInterface } from './components/ChatInterface';
 import { LandingPage } from './components/LandingPage';
 import { LoginModal } from './components/LoginModal';
+import { AboutPage } from './components/AboutPage';
+import { ContactPage } from './components/ContactPage';
+import { HelpCenterPage } from './components/HelpCenterPage';
+import { PrivacyPolicyPage } from './components/PrivacyPolicyPage';
+import { TermsPage } from './components/TermsPage';
+import { CookiePolicyPage } from './components/CookiePolicyPage';
+import { Footer } from './components/Footer';
 import { LLMModel, Project, FileItem, SummaryItem, ChatMessage } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://summamind-backend.onrender.com');
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const navigate = useNavigate();
   const [models, setModels] = useState<LLMModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('auto-router');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -26,7 +35,6 @@ export const App: React.FC = () => {
   // Navigation & Authentication states
   const { user, isLoaded: isClerkLoaded } = useUser();
   const { signOut } = useClerk();
-  const [view, setView] = useState<'landing' | 'workspace'>('landing');
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [customUser, setCustomUser] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('custom_user');
@@ -44,33 +52,18 @@ export const App: React.FC = () => {
     imageUrl: user.imageUrl
   } : customUser;
 
-  // Automatically redirect to workspace when logged in and close login modal
-  useEffect(() => {
-    if (currentUser) {
-      if (view === 'landing') {
-        setView('workspace');
-      }
-      setIsLoginOpen(false);
-    }
-  }, [currentUser, view]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('workspace') === 'true') {
-      setView('workspace');
-    }
-  }, []);
-
   // Clean up URL query parameters after Clerk has successfully loaded/authenticated
   useEffect(() => {
     if (isClerkLoaded) {
       const params = new URLSearchParams(window.location.search);
       const hasClerkParams = Array.from(params.keys()).some(key => key.startsWith('__clerk'));
-      if (params.get('workspace') === 'true' && !hasClerkParams) {
+      if (params.get('workspace') === 'true') {
+        navigate('/workspace');
+      } else if (hasClerkParams) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     }
-  }, [isClerkLoaded]);
+  }, [isClerkLoaded, navigate]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/v1/models`)
@@ -93,7 +86,6 @@ export const App: React.FC = () => {
       { id: 'proj-3', name: 'Personal', created_at: new Date().toISOString() }
     ]);
 
-    // Fetch files from database API on load
     fetchFilesFromAPI();
   }, []);
 
@@ -103,23 +95,19 @@ export const App: React.FC = () => {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setFiles(data);
-          // Only auto-select first file if no file is currently selected
           setSelectedFile((prev) => {
             if (!prev) {
               loadSummaryForFile(data[0].id, 'auto-router');
               return data[0];
             }
-            // If the currently selected file still exists in the list, keep it
             const stillExists = data.find((f: FileItem) => f.id === prev.id);
             return stillExists || data[0];
           });
         } else {
-          // Empty array from DB — no files uploaded yet, keep list empty
           setFiles([]);
         }
       })
       .catch(() => {
-        // Backend completely unreachable — show fallback demo files
         const defaultFiles: FileItem[] = [
           { id: 'file-101', project_id: 'proj-1', filename: 'LLM_Multimodal_RAG_Architecture.pdf', file_type: 'pdf', file_size_bytes: 4200000, status: 'completed', is_favorite: true, created_at: new Date().toISOString() },
           { id: 'file-102', project_id: 'proj-1', filename: 'System_Architecture_Diagram.png', file_type: 'image', file_size_bytes: 1500000, status: 'completed', is_favorite: false, created_at: new Date().toISOString() }
@@ -173,7 +161,7 @@ export const App: React.FC = () => {
           {
             summary_type: 'extracted_details',
             title: 'Extracted Details',
-            content: '**Extracted details from LLM_Multimodal_RAG_Architecture.pdf:**\n\n- **Title**: **LLM Multimodal RAG Architecture**\n- **Summary**: Technical specification document detailing a multi-stage RAG ingestion and retrieval network.\n- **Key Findings**:\n  - Ingests image and PDF text, converting them to 1536-dimensional embeddings.\n  - Vector search query path incorporates Supabase pgvector cosine matching with cross-encoder rerank passes.'
+            content: '**Extracted details from document:**\n\n- **Title**: Technical Document Intelligence Specification\n- **Key Findings**: Ingests image and PDF text, converting them to 1536-dimensional embeddings for Supabase pgvector cosine matching.'
           },
           {
             summary_type: 'action_items',
@@ -228,17 +216,10 @@ export const App: React.FC = () => {
       .then((res) => res.json())
       .then((data) => setChatMessages((prev) => [...prev, data]))
       .catch(() => {
-        const isAarjav = selectedFile?.filename.toLowerCase().includes('aarjav') || selectedFile?.filename.toLowerCase().includes('jain');
-        const isDiagram = selectedFile?.filename.toLowerCase().includes('diagram') || selectedFile?.filename.toLowerCase().includes('png');
-        
         const botMsg: ChatMessage = {
           id: `bot-${Date.now()}`,
           sender: 'assistant',
-          content: isAarjav
-            ? `Based on the resume of Aarjav Jain, the document lists his extensive experience in AI software engineering, specifically building scalable web applications, RAG pipelines, and full-stack SaaS products.`
-            : isDiagram
-            ? `The system architecture diagram visualizes the data flow from client upload, through Nginx proxy, to Celery workers and pgvector vector storage.`
-            : `The RAG pipeline pairs pgvector retrieval with cross-encoder reranking before LLM generation.`,
+          content: `The RAG pipeline pairs pgvector retrieval with cross-encoder reranking before LLM generation.`,
           citations: [
             { chunk_id: 'chk-1', page_number: 1, source_text: `Semantic page data parsed from ${selectedFile?.filename || 'the active document'}.` }
           ],
@@ -250,25 +231,39 @@ export const App: React.FC = () => {
   };
 
   const handleUploadSuccess = (newFile: FileItem) => {
-    // Optimistically add the file to the UI immediately
     setFiles((prev) => [newFile, ...prev]);
     setSelectedFile(newFile);
     loadSummaryForFile(newFile.id, selectedModel);
-
-    // Re-fetch from the database to ensure consistency after a short delay
     setTimeout(() => fetchFilesFromAPI(), 1000);
   };
 
-  const handleToggleFavorite = (fileId: string) => {
-    setFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, is_favorite: !f.is_favorite } : f)));
-  };
+  const WorkspaceView = (
+    <>
+      <div style={{ width: '100%', marginBottom: '24px' }}>
+        <SummaryViewer
+          summaries={summaries}
+          selectedModel={selectedModel}
+          isLoading={isLoadingSummary}
+          activeFileName={selectedFile?.filename}
+          onGenerateNewTypes={(types) => {
+            if (selectedFile) loadSummaryForFile(selectedFile.id, selectedModel, types);
+          }}
+        />
+      </div>
+
+      <ChatInterface
+        messages={chatMessages}
+        onSendMessage={handleSendMessage}
+        selectedModel={selectedModel}
+        selectedFile={selectedFile}
+      />
+    </>
+  );
 
   return (
-    <div className="shell">
+    <div className="shell" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Header Bar */}
       <Header
-        view={view}
-        onSelectView={setView}
         currentUser={currentUser}
         onOpenLogin={() => setIsLoginOpen(true)}
         onLogout={() => { 
@@ -291,36 +286,30 @@ export const App: React.FC = () => {
         onOpenUpload={() => setIsUploadOpen(true)}
       />
 
-      {view === 'landing' ? (
-        <LandingPage
-          onEnterWorkspace={() => setView('workspace')}
-          onOpenLogin={() => setIsLoginOpen(true)}
-          isLoggedIn={currentUser !== null}
-        />
-      ) : (
-        <>
-          {/* The Desk Full Width Panel */}
-          <div style={{ width: '100%', marginBottom: '24px' }}>
-            <SummaryViewer
-              summaries={summaries}
-              selectedModel={selectedModel}
-              isLoading={isLoadingSummary}
-              activeFileName={selectedFile?.filename}
-              onGenerateNewTypes={(types) => {
-                if (selectedFile) loadSummaryForFile(selectedFile.id, selectedModel, types);
-              }}
-            />
-          </div>
-
-          {/* Collapsible Ask Drawer Console at the bottom */}
-          <ChatInterface
-            messages={chatMessages}
-            onSendMessage={handleSendMessage}
-            selectedModel={selectedModel}
-            selectedFile={selectedFile}
+      <div style={{ flex: 1 }}>
+        <Routes>
+          <Route 
+            path="/" 
+            element={
+              <LandingPage
+                onEnterWorkspace={() => navigate('/workspace')}
+                onOpenLogin={() => setIsLoginOpen(true)}
+                isLoggedIn={currentUser !== null}
+              />
+            } 
           />
-        </>
-      )}
+          <Route path="/workspace" element={WorkspaceView} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/help" element={<HelpCenterPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/cookies" element={<CookiePolicyPage />} />
+        </Routes>
+      </div>
+
+      {/* Global Footer */}
+      <Footer />
 
       {/* Multimodal Upload Modal */}
       <UploadModal
@@ -383,7 +372,6 @@ export const App: React.FC = () => {
               e.preventDefault();
               if (tempUsername.trim()) {
                 localStorage.setItem(`username_${currentUser.email}`, tempUsername.trim());
-                // Force state update by triggering a tiny window reload or updating user state
                 window.location.reload();
               }
             }} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -429,5 +417,13 @@ export const App: React.FC = () => {
         </div>
       )}
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
   );
 };

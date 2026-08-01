@@ -1,4 +1,6 @@
 import React from 'react';
+import { SEO } from './SEO';
+import { Link } from 'react-router-dom';
 
 interface LandingPageProps {
   onEnterWorkspace: () => void;
@@ -23,6 +25,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         textAlign: 'center'
       }}
     >
+      <SEO 
+        title="SummaMind Studio — Multimodal AI Document Intelligence"
+        description="Transform raw reports, dense PDFs, images, web links, and audio transcripts into clean, tailored summaries and query them dynamically with page-level citations."
+        canonicalUrl="https://summamind.shop/"
+      />
+
       {/* Hero Header Section */}
       <div style={{ marginBottom: '56px' }}>
         <h1 
@@ -52,8 +60,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
         {/* Primary and Secondary CTA buttons */}
         <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-          <button 
-            onClick={onEnterWorkspace}
+          <Link 
+            to="/workspace"
             className="btn-primary"
             style={{
               padding: '14px 32px',
@@ -64,14 +72,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               color: '#152622',
               border: 'none',
               cursor: 'pointer',
+              textDecoration: 'none',
               boxShadow: '0 4px 14px rgba(212, 175, 55, 0.25)',
               transition: 'opacity 0.2s ease'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             Open Reading Room
-          </button>
+          </Link>
           
           {!isLoggedIn && (
             <button 
@@ -104,6 +111,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Feature Grid Panel */}
       <div 
+        id="features"
         style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', 
@@ -174,11 +182,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             Chat with your documents in RAG Mode. Your answers are annotated with hoverable page-specific pills displaying the exact source text, guaranteeing transparency.
           </p>
         </div>
-      </div>
-
-      {/* Footer Branding */}
-      <div style={{ marginTop: '72px', borderTop: '1px solid rgba(237, 230, 214, 0.05)', paddingTop: '24px', fontSize: '11px', color: '#7A8E8A', fontFamily: "'Courier New', Courier, monospace" }}>
-        SUMMAMIND STUDIO © 2026 · SECURED WITH TLS 1.3 · POWERED BY PGVECTOR
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { LLMModel, FileItem } from '../types';
 
 export interface UserProfile {
@@ -9,13 +10,11 @@ export interface UserProfile {
 }
 
 interface HeaderProps {
-  view: 'landing' | 'workspace';
-  onSelectView: (view: 'landing' | 'workspace') => void;
   currentUser: UserProfile | null;
   onOpenLogin: () => void;
   onLogout: () => void;
   
-  // Workspace controls (rendered in workspace view)
+  // Workspace controls (rendered in workspace route)
   models: LLMModel[];
   selectedModel: string;
   onSelectModel: (id: string) => void;
@@ -26,8 +25,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  view,
-  onSelectView,
   currentUser,
   onOpenLogin,
   onLogout,
@@ -40,6 +37,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenUpload
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+
+  const isWorkspace = location.pathname === '/workspace';
 
   const isDefaultAvatar = (url: string | undefined): boolean => {
     if (!url) return true;
@@ -53,12 +53,26 @@ export const Header: React.FC<HeaderProps> = ({
   
   const hasValidImageUrl = currentUser && currentUser.imageUrl && !isDefaultAvatar(currentUser.imageUrl);
 
+  const getLinkStyle = (path: string) => {
+    const isActive = location.pathname === path;
+    return {
+      color: isActive ? 'var(--gold)' : '#A8C3B8',
+      fontFamily: "'IBM Plex Sans', sans-serif",
+      fontSize: '14px',
+      fontWeight: 600,
+      textDecoration: 'none',
+      borderBottom: isActive ? '2px solid var(--gold)' : '2px solid transparent',
+      paddingBottom: '2px',
+      transition: 'all 0.2s ease'
+    };
+  };
+
   return (
     <div className="headbar" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
       {/* Top Navigation Row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '16px' }}>
         {/* Brand Logo & Name */}
-        <div className="brand" onClick={() => onSelectView('landing')} style={{ cursor: 'pointer' }}>
+        <Link to="/" className="brand" style={{ textDecoration: 'none', cursor: 'pointer' }}>
           <div className="brand-badge">SM</div>
           <div className="brand-text">
             <div className="name">The Reading Room</div>
@@ -66,44 +80,40 @@ export const Header: React.FC<HeaderProps> = ({
               SummaMind Studio — Multimodal Document Intelligence
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Middle Navigation Links */}
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <button 
-            onClick={() => onSelectView('landing')}
-            className={`nav-link-btn ${view === 'landing' ? 'active' : ''}`}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: view === 'landing' ? 'var(--gold)' : '#A8C3B8',
-              fontFamily: "'IBM Plex Sans', sans-serif",
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              textDecoration: view === 'landing' ? 'underline' : 'none',
-              transition: 'color 0.2s ease'
-            }}
-          >
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to="/" style={getLinkStyle('/')}>
             Home
-          </button>
-          <button 
-            onClick={() => onSelectView('workspace')}
-            className={`nav-link-btn ${view === 'workspace' ? 'active' : ''}`}
+          </Link>
+          <a 
+            href="/#features" 
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: view === 'workspace' ? 'var(--gold)' : '#A8C3B8',
+              color: '#A8C3B8',
               fontFamily: "'IBM Plex Sans', sans-serif",
               fontSize: '14px',
               fontWeight: 600,
-              cursor: 'pointer',
-              textDecoration: view === 'workspace' ? 'underline' : 'none',
+              textDecoration: 'none',
               transition: 'color 0.2s ease'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--gold)'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#A8C3B8'}
           >
+            Features
+          </a>
+          <Link to="/about" style={getLinkStyle('/about')}>
+            About
+          </Link>
+          <Link to="/help" style={getLinkStyle('/help')}>
+            Help
+          </Link>
+          <Link to="/contact" style={getLinkStyle('/contact')}>
+            Contact
+          </Link>
+          <Link to="/workspace" style={getLinkStyle('/workspace')}>
             Workspace
-          </button>
+          </Link>
         </div>
 
         {/* Right Authentication Action */}
@@ -265,9 +275,9 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Bottom Controls Row (only rendered if in workspace view) */}
-      {view === 'workspace' && (
-        <div className="head-controls" style={{ display: 'flex', justifyContent: 'flex-start', gap: '16px', borderTop: '1px solid rgba(237, 230, 214, 0.05)', paddingTop: '10px', marginTop: '4px' }}>
+      {/* Bottom Controls Row (only rendered if in workspace route) */}
+      {isWorkspace && (
+        <div className="head-controls" style={{ display: 'flex', justifyContent: 'flex-start', gap: '16px', borderTop: '1px solid rgba(237, 230, 214, 0.05)', paddingTop: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
           {/* Model Dropdown Dial */}
           <div className="dial">
             <span>Model —</span>
