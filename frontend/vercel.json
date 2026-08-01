@@ -1,11 +1,13 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/sitemap.xml",
       "headers": [
         {
           "key": "Content-Type",
-          "value": "application/xml"
+          "value": "application/xml; charset=utf-8"
         }
       ]
     },
@@ -14,7 +16,7 @@
       "headers": [
         {
           "key": "Content-Type",
-          "value": "text/plain"
+          "value": "text/plain; charset=utf-8"
         }
       ]
     }
@@ -25,7 +27,7 @@
       "destination": "https://summamind-backend.onrender.com/api/:path*"
     },
     {
-      "source": "/((?!api/|.*\\..*).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
