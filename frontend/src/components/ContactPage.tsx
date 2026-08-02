@@ -262,38 +262,56 @@ export const ContactPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Google Maps Placeholder */}
-          <div 
-            style={{ 
-              background: '#152622', 
-              border: '1px solid var(--border)', 
-              borderRadius: '12px', 
-              overflow: 'hidden',
-              height: '240px',
-              position: 'relative'
+          {/* Support Hours & Response Times Card */}
+          <div
+            style={{
+              background: '#152622',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '28px'
             }}
           >
-            <div 
-              style={{ 
-                position: 'absolute', 
-                inset: 0, 
-                background: 'radial-gradient(circle at center, #1C2F2B 0%, #0D1614 100%)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '20px',
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>📍</div>
-              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', color: 'var(--gold)', marginBottom: '4px' }}>
-                San Francisco Research Facility
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', color: 'var(--gold)', marginTop: 0, marginBottom: '20px', fontWeight: 'normal' }}>
+              Support Hours & Response Times
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#0D1614', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ color: '#7A8E8A', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '2px' }}>GENERAL INQUIRIES</div>
+                  <div style={{ color: '#EDE6D6' }}>support@summamind.shop</div>
+                </div>
+                <span style={{ background: '#1A3D32', color: '#7FBE9E', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", padding: '4px 10px', borderRadius: '4px', border: '1px solid #4C8A6D' }}>≤ 24 HRS</span>
               </div>
-              <div style={{ fontSize: '12px', color: '#7A8E8A', fontFamily: "'IBM Plex Mono', monospace" }}>
-                37.7749° N, 122.4194° W · GOOGLE MAPS INTERACTIVE NODE
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#0D1614', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ color: '#7A8E8A', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '2px' }}>ENTERPRISE & API SALES</div>
+                  <div style={{ color: '#EDE6D6' }}>Enterprise integrations & bulk licensing</div>
+                </div>
+                <span style={{ background: '#1A3D32', color: '#7FBE9E', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", padding: '4px 10px', borderRadius: '4px', border: '1px solid #4C8A6D' }}>≤ 48 HRS</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#0D1614', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ color: '#7A8E8A', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '2px' }}>LEGAL & PRIVACY REQUESTS</div>
+                  <div style={{ color: '#EDE6D6' }}>GDPR, CCPA, data deletion requests</div>
+                </div>
+                <span style={{ background: '#1A3D32', color: '#7FBE9E', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", padding: '4px 10px', borderRadius: '4px', border: '1px solid #4C8A6D' }}>≤ 72 HRS</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#0D1614', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div>
+                  <div style={{ color: '#7A8E8A', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", marginBottom: '2px' }}>OFFICE HOURS</div>
+                  <div style={{ color: '#EDE6D6' }}>Mon–Fri · 09:00–18:00 PST</div>
+                </div>
+                <span style={{ background: '#152622', color: '#A8C3B8', fontSize: '11px', fontFamily: "'IBM Plex Mono', monospace", padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--border)' }}>BUSINESS DAYS</span>
               </div>
             </div>
+
+            <p style={{ fontSize: '12px', color: '#7A8E8A', marginTop: '16px', marginBottom: 0, lineHeight: '1.5' }}>
+              All response time estimates are measured in business hours. For urgent technical outages, please include "URGENT" in your subject line.
+            </p>
           </div>
         </div>
       </div>

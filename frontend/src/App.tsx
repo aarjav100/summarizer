@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SEO } from './components/SEO';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { Header, UserProfile } from './components/Header';
@@ -239,6 +240,12 @@ const AppContent: React.FC = () => {
 
   const WorkspaceView = (
     <>
+      <SEO
+        title="Reading Room Workspace — SummaMind Studio"
+        description="Analyze your documents with SummaMind Studio's AI Reading Room. Upload PDFs, images, audio, or URLs and receive grounded summaries, timelines, FAQs, and cited RAG answers."
+        canonicalUrl="https://summamind.shop/workspace"
+      />
+
       <div style={{ width: '100%', marginBottom: '24px' }}>
         <SummaryViewer
           summaries={summaries}
@@ -257,6 +264,165 @@ const AppContent: React.FC = () => {
         selectedModel={selectedModel}
         selectedFile={selectedFile}
       />
+
+      {/* Reading Room Guide — informational publisher content */}
+      <div
+        style={{
+          maxWidth: '1200px',
+          margin: '48px auto 0 auto',
+          padding: '0 16px',
+          color: '#EDE6D6',
+          fontFamily: "'IBM Plex Sans', sans-serif"
+        }}
+      >
+        <div
+          style={{
+            background: '#111F1C',
+            border: '1px solid var(--border)',
+            borderRadius: '16px',
+            padding: '40px',
+            marginBottom: '32px'
+          }}
+        >
+          <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+            <div style={{ fontSize: '12px', fontFamily: "'IBM Plex Mono', monospace", color: 'var(--gold)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '10px' }}>
+              READING ROOM GUIDE
+            </div>
+            <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '30px', color: 'var(--gold)', margin: '0 0 10px 0', fontWeight: 'normal' }}>
+              How to Use the Reading Room
+            </h2>
+            <p style={{ fontSize: '14px', color: '#A8C3B8', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+              The Reading Room is your workspace for transforming raw documents into structured, citable knowledge using SummaMind Studio's multimodal AI pipeline.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+            {[
+              {
+                icon: '📤',
+                step: '01',
+                title: 'Upload a Document',
+                body: 'Click the Upload button in the header to add a PDF, image (PNG/JPG), audio file (MP3/WAV), or paste a website URL. SummaMind automatically routes each format to its dedicated ingestion engine — PyMuPDF for PDFs, Tesseract OCR for scanned images, and OpenAI Whisper for audio transcripts.'
+              },
+              {
+                icon: '🤖',
+                step: '02',
+                title: 'Choose Your AI Model',
+                body: 'Use the model selector in the header to choose between Smart AI Router (automatic), OpenAI GPT-4.1 Turbo (structured extraction), Claude Sonnet 5 (nuanced synthesis), or Google Gemini 2.5 Pro (multimodal tasks). The Smart Router auto-selects the optimal model for your document type.'
+              },
+              {
+                icon: '📋',
+                step: '03',
+                title: 'Select Summary Formats',
+                body: 'Choose from eleven output formats: Short Summary, Medium Summary, Detailed Analysis, Bullet Points, Key Takeaways, Extracted Details, Action Items, Generated FAQ, Timeline & Chapters, MCQ Quiz, and Structured JSON. Generate all eleven simultaneously or pick specific formats for your workflow.'
+              },
+              {
+                icon: '💬',
+                step: '04',
+                title: 'Chat With Citations',
+                body: 'Ask any natural language question in the RAG Chat panel below. Every answer is assembled from retrieved vector chunks and annotated with hoverable citation pills — showing the exact document name, page number, and original source text so you can independently verify every claim.'
+              }
+            ].map((item) => (
+              <div
+                key={item.step}
+                style={{
+                  background: '#152622',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '24px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '20px' }}>{item.icon}</span>
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '11px', color: 'var(--gold)' }}>STEP {item.step}</span>
+                </div>
+                <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '17px', color: '#EDE6D6', margin: '0 0 10px 0', fontWeight: 'normal' }}>
+                  {item.title}
+                </h3>
+                <p style={{ fontSize: '13px', color: '#A8C3B8', lineHeight: '1.6', margin: 0 }}>
+                  {item.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tips & Best Practices */}
+        <div
+          style={{
+            background: '#152622',
+            border: '1px solid var(--border)',
+            borderRadius: '16px',
+            padding: '36px',
+            marginBottom: '32px'
+          }}
+        >
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '24px', color: 'var(--gold)', margin: '0 0 20px 0', fontWeight: 'normal' }}>
+            Tips for Best Results
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            {[
+              { tip: 'Use high-resolution scans', detail: 'For scanned image documents, use at least 300 DPI resolution for optimal OCR accuracy. Lower resolution images may produce garbled text extraction.' },
+              { tip: 'Select the right model for your task', detail: 'Use GPT-4.1 for legal/financial documents requiring precise clause extraction. Use Claude Sonnet 5 for narrative-heavy content like academic papers or reports. Use Gemini Pro for image-heavy PDFs.' },
+              { tip: 'Generate all summary types', detail: 'Click "Generate All Formats" to produce all eleven summary types simultaneously. This gives you a complete knowledge picture and lets you copy the format most useful for your current workflow.' },
+              { tip: 'Cite before you act', detail: 'Always verify critical conclusions using the citation pills in the RAG Chat interface. Hover over each pill to see the exact original text from the source document before making important decisions.' },
+              { tip: 'Organize with Projects', detail: 'Use the project selector to group related documents together. This allows you to search across multiple files in a single RAG chat session for comprehensive cross-document analysis.' },
+              { tip: 'Audio transcription quality', detail: 'For audio files, ensure minimal background noise and clear speech for the best Whisper transcription accuracy. Upload the full audio file — SummaMind handles transcription before summarization automatically.' }
+            ].map((item, idx) => (
+              <div key={idx} style={{ padding: '16px', background: '#0D1614', borderRadius: '8px', border: '1px solid rgba(237,230,214,0.06)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gold)', marginBottom: '6px' }}>✦ {item.tip}</div>
+                <div style={{ fontSize: '12px', color: '#A8C3B8', lineHeight: '1.6' }}>{item.detail}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Supported Document Types Reference */}
+        <div
+          style={{
+            background: '#111F1C',
+            border: '1px solid var(--border)',
+            borderRadius: '16px',
+            padding: '36px'
+          }}
+        >
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '24px', color: 'var(--gold)', margin: '0 0 8px 0', fontWeight: 'normal' }}>
+            Supported Document Types
+          </h2>
+          <p style={{ fontSize: '14px', color: '#A8C3B8', margin: '0 0 24px 0', lineHeight: '1.5' }}>
+            SummaMind Studio's ingestion layer supports the following file formats and source types:
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+            {[
+              { label: 'PDF Documents', ext: '.pdf', note: 'Including scanned PDFs via OCR' },
+              { label: 'PNG Images', ext: '.png', note: 'Full OCR text extraction' },
+              { label: 'JPEG Images', ext: '.jpg / .jpeg', note: 'Full OCR text extraction' },
+              { label: 'WebP Images', ext: '.webp', note: 'Full OCR text extraction' },
+              { label: 'MP3 Audio', ext: '.mp3', note: 'Whisper speech-to-text' },
+              { label: 'WAV Audio', ext: '.wav', note: 'Whisper speech-to-text' },
+              { label: 'M4A Audio', ext: '.m4a', note: 'Whisper speech-to-text' },
+              { label: 'Plain Text', ext: '.txt', note: 'Direct ingestion' },
+              { label: 'Markdown', ext: '.md', note: 'Direct ingestion' },
+              { label: 'Website URLs', ext: 'https://...', note: 'Automated web crawler' }
+            ].map((fmt) => (
+              <div
+                key={fmt.ext}
+                style={{
+                  background: '#152622',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  minWidth: '160px'
+                }}
+              >
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: '12px', color: 'var(--gold)', marginBottom: '4px' }}>{fmt.ext}</div>
+                <div style={{ fontSize: '13px', color: '#EDE6D6', fontWeight: 600 }}>{fmt.label}</div>
+                <div style={{ fontSize: '11px', color: '#7A8E8A', marginTop: '2px' }}>{fmt.note}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </>
   );
 
