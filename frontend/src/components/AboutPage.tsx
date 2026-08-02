@@ -8,7 +8,7 @@ export const AboutPage: React.FC = () => {
       <SEO 
         title="About Us — SummaMind Studio"
         description="Learn about SummaMind Studio, our mission, vision, and how our multimodal AI document intelligence platform transforms complex documents into grounded knowledge."
-        canonicalUrl="https://summamind.shop/about"
+        canonicalUrl="https://www.summamind.shop/about"
       />
 
       {/* Hero Header */}

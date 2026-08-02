@@ -1,65 +1,45 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { Helmet } from 'react-helmet-async';
 
 interface SEOProps {
   title: string;
   description: string;
   canonicalUrl?: string;
   ogType?: string;
+  ogImage?: string;
 }
 
 export const SEO: React.FC<SEOProps> = ({
   title,
   description,
-  canonicalUrl = 'https://summamind.shop/',
-  ogType = 'website'
+  canonicalUrl = 'https://www.summamind.shop/',
+  ogType = 'website',
+  ogImage = 'https://www.summamind.shop/og-image.png',
 }) => {
-  useEffect(() => {
-    // Title
-    document.title = title;
+  return (
+    <Helmet>
+      {/* Primary */}
+      <title>{title}</title>
+      <meta name="description" content={description} />
+      <link rel="canonical" href={canonicalUrl} />
 
-    // Helper to set or update meta tag
-    const setMetaTag = (selector: string, attrName: string, attrValue: string, content: string) => {
-      let element = document.querySelector(selector);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(attrName, attrValue);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', content);
-    };
+      {/* Open Graph */}
+      <meta property="og:type" content={ogType} />
+      <meta property="og:site_name" content="SummaMind Studio" />
+      <meta property="og:title" content={title} />
+      <meta property="og:description" content={description} />
+      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:image" content={ogImage} />
 
-    // Helper for link tags
-    const setLinkTag = (rel: string, href: string) => {
-      let element = document.querySelector(`link[rel="${rel}"]`) as HTMLLinkElement | null;
-      if (!element) {
-        element = document.createElement('link');
-        element.setAttribute('rel', rel);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('href', href);
-    };
+      {/* Twitter */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@SummaMindAI" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={ogImage} />
 
-    // Description
-    setMetaTag('meta[name="description"]', 'name', 'description', description);
-
-    // Canonical
-    setLinkTag('canonical', canonicalUrl);
-
-    // Open Graph
-    setMetaTag('meta[property="og:title"]', 'property', 'og:title', title);
-    setMetaTag('meta[property="og:description"]', 'property', 'og:description', description);
-    setMetaTag('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
-    setMetaTag('meta[property="og:type"]', 'property', 'og:type', ogType);
-    setMetaTag('meta[property="og:site_name"]', 'property', 'og:site_name', 'SummaMind Studio');
-
-    // Twitter Card
-    setMetaTag('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary_large_image');
-    setMetaTag('meta[name="twitter:title"]', 'name', 'twitter:title', title);
-    setMetaTag('meta[name="twitter:description"]', 'name', 'twitter:description', description);
-
-    // Scroll to top on navigation change
-    window.scrollTo(0, 0);
-  }, [title, description, canonicalUrl, ogType]);
-
-  return null;
+      {/* Robots */}
+      <meta name="robots" content="index, follow" />
+    </Helmet>
+  );
 };

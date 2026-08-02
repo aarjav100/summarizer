@@ -7,7 +7,7 @@ export const TermsPage: React.FC = () => {
       <SEO
         title="Terms & Conditions — SummaMind Studio"
         description="Review the Terms & Conditions governing the use of SummaMind Studio multimodal document intelligence services."
-        canonicalUrl="https://summamind.shop/terms"
+        canonicalUrl="https://www.summamind.shop/terms"
       />
 
       <div style={{ marginBottom: '40px' }}>

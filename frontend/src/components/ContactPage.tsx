@@ -54,7 +54,7 @@ export const ContactPage: React.FC = () => {
       <SEO 
         title="Contact Us — SummaMind Studio"
         description="Get in touch with SummaMind Studio. Contact our support and technical engineering team for inquiries, enterprise integrations, or feedback."
-        canonicalUrl="https://summamind.shop/contact"
+        canonicalUrl="https://www.summamind.shop/contact"
       />
 
       {/* Header */}

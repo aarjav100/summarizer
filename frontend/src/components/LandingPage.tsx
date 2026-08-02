@@ -118,7 +118,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <SEO
         title="SummaMind Studio — Multimodal AI Document Intelligence"
         description="Transform raw reports, dense PDFs, images, web links, and audio transcripts into clean, tailored summaries and query them dynamically with page-level citations."
-        canonicalUrl="https://summamind.shop/"
+        canonicalUrl="https://www.summamind.shop/"
       />
 
       {/* ─── Hero Section ─── */}

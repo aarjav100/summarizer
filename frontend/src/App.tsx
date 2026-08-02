@@ -243,7 +243,7 @@ const AppContent: React.FC = () => {
       <SEO
         title="Reading Room Workspace — SummaMind Studio"
         description="Analyze your documents with SummaMind Studio's AI Reading Room. Upload PDFs, images, audio, or URLs and receive grounded summaries, timelines, FAQs, and cited RAG answers."
-        canonicalUrl="https://summamind.shop/workspace"
+        canonicalUrl="https://www.summamind.shop/workspace"
       />
 
       <div style={{ width: '100%', marginBottom: '24px' }}>

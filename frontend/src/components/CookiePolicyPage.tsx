@@ -32,7 +32,7 @@ export const CookiePolicyPage: React.FC = () => {
       <SEO 
         title="Cookie Policy & Settings — SummaMind Studio"
         description="Learn how SummaMind Studio uses cookies and manage your interactive cookie preferences."
-        canonicalUrl="https://summamind.shop/cookies"
+        canonicalUrl="https://www.summamind.shop/cookies"
       />
 
       <div style={{ marginBottom: '40px' }}>

@@ -7,7 +7,7 @@ export const PrivacyPolicyPage: React.FC = () => {
       <SEO
         title="Privacy Policy — SummaMind Studio"
         description="Read the official Privacy Policy for SummaMind Studio. Learn how we collect, store, encrypt, and handle user documents and data."
-        canonicalUrl="https://summamind.shop/privacy-policy"
+        canonicalUrl="https://www.summamind.shop/privacy-policy"
       />
 
       <div style={{ marginBottom: '40px' }}>

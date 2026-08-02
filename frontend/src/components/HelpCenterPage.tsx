@@ -111,7 +111,7 @@ export const HelpCenterPage: React.FC = () => {
       <SEO 
         title="Help Center & FAQs — SummaMind Studio"
         description="Find answers to frequently asked questions about SummaMind Studio, document uploading, AI summarization, citation grounding, and privacy."
-        canonicalUrl="https://summamind.shop/help"
+        canonicalUrl="https://www.summamind.shop/help"
       />
 
       {/* Header */}
