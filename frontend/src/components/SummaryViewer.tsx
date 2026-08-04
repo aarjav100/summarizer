@@ -131,7 +131,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
     const questions = parseMCQ(content);
     if (questions.length === 0) {
       return (
-        <div style={{ fontSize: '15.5px', lineHeight: '1.8', color: 'var(--ink)' }}>
+        <div style={{ fontSize: '15.5px', lineHeight: '1.8', color: '#EDE6D6' }}>
           <ReactMarkdown>{content}</ReactMarkdown>
         </div>
       );
@@ -167,7 +167,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                 gap: '14px'
               }}
             >
-              <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--ink)' }}>
+              <div style={{ fontWeight: 600, fontSize: '15px', color: '#EDE6D6' }}>
                 Q{q.questionNumber || (qIdx + 1)}. {q.questionText}
               </div>
               
@@ -306,7 +306,7 @@ export const SummaryViewer: React.FC<SummaryViewerProps> = ({
                   background: 'rgba(28, 38, 35, 0.05)',
                   fontSize: '13px',
                   lineHeight: '1.5',
-                  color: 'var(--ink)',
+                  color: '#EDE6D6',
                   borderLeft: '3px solid var(--gold)'
                 }}>
                   <strong>Explanation:</strong> {q.explanation}

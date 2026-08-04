@@ -715,7 +715,7 @@ body {
 /* ===== Polished Summary Markdown Rendering Styles ===== */
 .parsed-summary-content {
   font-family: 'Playfair Display', Georgia, serif;
-  color: var(--ink);
+  color: #EDE6D6;
 }
 
 .parsed-summary-content h3 {
@@ -742,10 +742,11 @@ body {
   margin-bottom: 10px;
   font-size: 14.5px;
   line-height: 1.7;
-  color: var(--ink);
+  color: #EDE6D6;
 }
 
 .parsed-summary-content p, .text-content p {
   margin-bottom: 1.4em;
   line-height: 1.75;
+  color: #EDE6D6;
 }
