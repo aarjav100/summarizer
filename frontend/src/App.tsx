@@ -17,7 +17,14 @@ import { CookiePolicyPage } from './components/CookiePolicyPage';
 import { Footer } from './components/Footer';
 import { LLMModel, Project, FileItem, SummaryItem, ChatMessage } from './types';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:8000' : 'https://summamind-backend.onrender.com');
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return 'http://localhost:8000';
+  }
+  return import.meta.env.VITE_API_BASE_URL || 'https://summamind-backend.onrender.com';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();

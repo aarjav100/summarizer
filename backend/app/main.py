@@ -18,7 +18,63 @@ app = FastAPI(
 def on_startup():
     init_db()
 
-# CORS Configuration
+# Global Exception Handlers to guarantee CORS headers on error responses
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin", "*")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}"},
+        headers={
+            "Access-Control-Allow-Origin": origin if origin != "*" else "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+@app.exception_handler(FastAPIHTTPException)
+async def http_exception_handler(request: Request, exc: FastAPIHTTPException):
+    origin = request.headers.get("origin", "*")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={
+            "Access-Control-Allow-Origin": origin if origin != "*" else "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+# Request Timing & Security Middleware
+@app.middleware("http")
+async def add_security_headers_and_timing(request: Request, call_next):
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        origin = request.headers.get("origin", "*")
+        return JSONResponse(
+            status_code=500,
+            content={"detail": f"Internal Server Error: {str(exc)}"},
+            headers={
+                "Access-Control-Allow-Origin": origin if origin != "*" else "*",
+                "Access-Control-Allow-Credentials": "true",
+                "Access-Control-Allow-Methods": "*",
+                "Access-Control-Allow-Headers": "*",
+            }
+        )
+    process_time = time.time() - start_time
+    
+    response.headers["X-Process-Time"] = f"{process_time:.4f}s"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+# CORS Configuration (Added LAST so it wraps as the outermost middleware for all requests/responses)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -27,24 +83,12 @@ app.add_middleware(
         "https://summamind.shop",
         "https://www.summamind.shop"
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app|https://.*\.summamind\.shop|https://summamind\.shop|https://www.summamind\.shop|http://localhost:\d+",
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
-
-# Request Timing & Security Middleware
-@app.middleware("http")
-async def add_security_headers_and_timing(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    
-    response.headers["X-Process-Time"] = f"{process_time:.4f}s"
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    return response
 
 # Register Routers
 app.include_router(auth.router, prefix=settings.API_V1_STR)

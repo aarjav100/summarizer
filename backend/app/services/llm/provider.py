@@ -202,6 +202,9 @@ class LLMProviderService:
 
     @staticmethod
     def _simulate_ai_response(prompt: str, system_prompt: Optional[str], model_info: LLMModelInfo, filename: Optional[str] = None) -> str:
+        import re
+        import json
+
         prompt_lower = prompt.lower()
         
         # Check if prompt contains actual document content
@@ -210,521 +213,174 @@ class LLMProviderService:
             parts = prompt.split("Content:")
             if len(parts) > 1:
                 content_extracted = parts[1].strip()
-                # Clean trailing prompt instructions like 'Output only...' from the content
-                import re
+                content_extracted = re.sub(r'(?i)\bOutput only\b.*', '', content_extracted).strip()
+        elif "document:" in prompt_lower:
+            parts = prompt.split("Document:")
+            if len(parts) > 1:
+                content_extracted = parts[1].strip()
                 content_extracted = re.sub(r'(?i)\bOutput only\b.*', '', content_extracted).strip()
         
-        # Extract the user's actual question query from prompt:
-        user_query = ""
-        if "answer query: '" in prompt:
-            parts = prompt.split("Answer query: '")
-            if len(parts) > 1:
-                user_query = parts[1].split("'")[0].strip()
-        elif "answer user query: '" in prompt:
-            parts = prompt.split("answer user query: '")
-            if len(parts) > 1:
-                user_query = parts[1].split("'")[0].strip()
-        elif "answer query:" in prompt_lower:
-            parts = prompt_lower.split("answer query:")
-            if len(parts) > 1:
-                user_query = parts[1].split("using")[0].strip().replace("'", "").replace("\"", "")
+        source_text = content_extracted or prompt
+        cleaned_content = re.sub(r'---\s*Page\s*\d+\s*---\s*', '', source_text).strip()
 
-        user_query_lower = user_query.lower()
-        is_resume = filename and any(x in filename.lower() for x in ["aarjav", "resume", "jain", "aj_resumes"])
-        is_diagram = filename and any(x in filename.lower() for x in ["diagram", "png", "image"])
-        is_rag_spec = filename and any(x in filename.lower() for x in ["rag", "architecture", "pdf"])
-
-        # Intercept general conversational queries when no file context is active
-        is_conversational_only = not filename or (not is_resume and not is_diagram and not is_rag_spec)
-        if is_conversational_only and not content_extracted:
-            q = user_query_lower or prompt_lower.replace("answer query:", "").replace("answer user query:", "").strip().replace("'", "").replace("\"", "")
-            if "name" in q:
-                return "I am the Archivist, your dedicated AI document intelligence assistant. How can I help you today?"
-            elif "who are you" in q or "what are you" in q:
-                return "I am the Archivist, a specialized AI assistant designed to help you analyze, search, and chat with your uploaded reference documents."
-            elif "hello" in q or "hi" in q:
-                return "Hello! I am the Archivist. How can I assist you with your reading room files today?"
-            elif "how are you" in q:
-                return "I am operating at peak efficiency, ready to search and summarize your files. How can I help you today?"
-            else:
-                return f"I am the Archivist. In General Knowledge Mode, I can answer questions directly. Let me know how I can help you analyze your documents!"
-
-        # If we have custom user content, parse it dynamically
-        has_real_content = content_extracted and "Multimodal AI Summarization" not in content_extracted
-        if has_real_content:
-            import re
-            import json
-            
-            # Clean page headers and normalize newlines
-            cleaned_content = re.sub(r'---\s*Page\s*\d+\s*---\s*', '', content_extracted)
-            cleaned_content = cleaned_content.strip()
-            
-            # Split by line boundaries first to avoid merging separate lines/concepts
-            raw_lines = [l.strip() for l in cleaned_content.split('\n') if l.strip()]
-            sentences = []
-            for line in raw_lines:
-                # Split each line by sentence punctuation
-                for s in re.split(r'(?<=[.!?])\s+', line):
-                    s_cleaned = s.strip()
-                    if s_cleaned:
-                        sentences.append(s_cleaned)
-            
-            words = cleaned_content.split()
-            word_count = len(words)
-
-            # Route conversational queries
-            if user_query_lower:
-                if any(x in user_query_lower for x in ["name", "who are you", "what are you"]):
-                    return (
-                        "I am the Archivist, your dedicated AI document assistant.\n\n"
-                        "I help you query, summarize, and extract precise details from your uploaded files and reference catalog."
-                    )
-                elif any(x in user_query_lower for x in ["what is the pdf about", "what is this document about", "summarize the document", "tell me about the document", "what is this file"]):
-                    if is_resume:
-                        return (
-                            "This PDF contains the professional resume of Aarjav Jain.\n\n"
-                            "It lists his background as a software engineer with expertise in React 19, FastAPI, and pgvector database integrations."
-                        )
-                    elif is_diagram:
-                        return (
-                            "This image is a technical system architecture diagram.\n\n"
-                            "It represents the end-to-end data pipelines, highlighting PDF text extraction, OCR, speech processing, and RAG indexing."
-                        )
-                    else:
-                        intro = " ".join(sentences[:2]) if sentences else "the uploaded source document."
-                        return (
-                            f"This document is an uploaded reference file named '{filename or 'source'}'.\n\n"
-                            f"Based on the text content, it covers: {intro}"
-                        )
-                elif any(x in user_query_lower for x in ["email", "phone", "contact", "address"]):
-                    if is_resume:
-                        return (
-                            "Candidate Aarjav Jain's contact details are listed below:\n\n"
-                            "- **Email Address**: aarjav100jain@gmail.com\n"
-                            "- **Phone Number**: +91 7599863191\n"
-                            "- **LinkedIn**: linkedin.com/in/aarjav-jain"
-                        )
-                
-                # Search text matches dynamically for other questions!
-                keywords = [w for w in user_query_lower.split() if len(w) > 3 and w not in ["what", "where", "when", "about", "this", "that", "from"]]
-                matched_sentences = []
-                for s in sentences:
-                    if any(kw in s.lower() for kw in keywords):
-                        matched_sentences.append(s)
-                
-                if matched_sentences:
-                    return (
-                        f"Based on the active document, I found details matching your question:\n\n"
-                        + "\n".join(f"- {s}" for s in matched_sentences[:4])
-                    )
-            
-            if "extracted_details" in prompt_lower or "extracted" in prompt_lower:
-                # STEP 1 — Identify Document Type
-                doc_type = "Other"
-                content_lower = cleaned_content.lower()
-                if any(x in content_lower for x in ["resume", "education", "experience", "skills", "projects", "intern"]):
-                    doc_type = "Resume"
-                elif any(x in content_lower for x in ["invoice", "bill to", "receipt", "total amount", "vendor"]):
-                    doc_type = "Invoice"
-                elif any(x in content_lower for x in ["certified", "certificate", "id number", "issuing authority"]):
-                    doc_type = "ID/Certificate"
-                elif any(x in content_lower for x in ["contract", "agreement", "parties involved", "effective date"]):
-                    doc_type = "Contract"
-                elif any(x in content_lower for x in ["report", "overview", "findings", "architecture", "specification"]):
-                    doc_type = "Report"
-
-                # STEP 2 — Format Accordingly
-                res_lines = []
-                res_lines.append(f"**Extracted details from {filename or 'document'}:**\n")
-                
-                if doc_type == "Resume":
-                    # Collect sections
-                    sections_dict = {
-                        "Education": [],
-                        "Experience": [],
-                        "Skills": [],
-                        "Projects": [],
-                        "Certifications": []
-                    }
-                    current_sec = None
-                    for s in sentences:
-                        s_clean = s.strip()
-                        s_lower = s_clean.lower()
-                        if "education" in s_lower:
-                            current_sec = "Education"
-                            continue
-                        elif "experience" in s_lower:
-                            current_sec = "Experience"
-                            continue
-                        elif "skills" in s_lower:
-                            current_sec = "Skills"
-                            continue
-                        elif "projects" in s_lower:
-                            current_sec = "Projects"
-                            continue
-                        elif "certifications" in s_lower or "certification" in s_lower:
-                            current_sec = "Certifications"
-                            continue
-                        
-                        if current_sec:
-                            sections_dict[current_sec].append(s_clean)
-                    
-                    for sec, items in sections_dict.items():
-                        if items:
-                            res_lines.append(f"**{sec}**")
-                            for item in items[:5]:
-                                if ":" in item and len(item.split(":", 1)[0]) < 35:
-                                    parts = item.split(":", 1)
-                                    res_lines.append(f"- **{parts[0].strip()}**: {parts[1].strip()}")
-                                else:
-                                    res_lines.append(f"- {item}")
-                            res_lines.append("")
-
-                elif doc_type == "ID/Certificate":
-                    name = "Aarjav Jain"
-                    doc_name = "AWS Certified Machine Learning Engineer - Associate"
-                    cert_num = "132afbd4c0594122b42c222a9901e2ef"
-                    issue_date = "*June 16, 2026*"
-                    expiry_date = "*June 16, 2029*"
-                    authority = "Amazon Web Services (AWS)"
-                    
-                    res_lines.append(f"- **Name**: **{name}**")
-                    res_lines.append(f"- **Document Type**: **{doc_name}**")
-                    res_lines.append(f"- **ID/Certificate Number**: **{cert_num}**")
-                    res_lines.append(f"- **Issue Date**: {issue_date}")
-                    res_lines.append(f"- **Expiry Date**: {expiry_date}")
-                    res_lines.append(f"- **Issuing Authority**: **{authority}**")
-
-                elif doc_type == "Report":
-                    title = filename or "Technical Specification"
-                    summary_text = ""
-                    findings = []
-                    metrics = []
-                    
-                    for s in sentences:
-                        if "overview" in s.lower() or "summary" in s.lower():
-                            summary_text = s
-                        elif "rag" in s.lower() or "retrieval" in s.lower() or "llm" in s.lower():
-                            findings.append(s)
-                        elif "l(theta)" in s.lower() or "=" in s.lower() or "formula" in s.lower():
-                            metrics.append(s)
-                            
-                    res_lines.append(f"- **Title**: **{title}**")
-                    if summary_text:
-                        res_lines.append(f"- **Summary**: {summary_text}")
-                    if findings:
-                        res_lines.append("- **Key Findings**:")
-                        for f in findings[:3]:
-                            res_lines.append(f"  - {f}")
-                    if metrics:
-                        res_lines.append("- **Data/Metrics**:")
-                        for m in metrics[:2]:
-                            res_lines.append(f"  - {m}")
-                else:
-                    # Generic
-                    res_lines.append("**Key Content Summary**")
-                    for s in sentences[:5]:
-                        if ":" in s and len(s.split(":", 1)[0]) < 35:
-                            parts = s.split(":", 1)
-                            res_lines.append(f"- **{parts[0].strip()}**: {parts[1].strip()}")
-                        else:
-                            res_lines.append(f"- {s}")
-                            
-                return "\n".join(res_lines)
-
-            elif "action_items" in prompt_lower or "action items" in prompt_lower:
-                actions = []
-                action_words = ["develop", "implement", "create", "manage", "build", "run", "verify", "design", "write", "configure", "lead"]
-                for s in sentences:
-                    if any(w in s.lower() for w in action_words):
-                        actions.append(s)
-                if not actions:
-                    actions = sentences[:3]
-                return "\n".join(f"{idx+1}. {act}" for idx, act in enumerate(actions[:4]))
-                
-            elif "faq" in prompt_lower:
-                faq_pairs = []
-                faq_pairs.append(f"Q: What is the main subject of this document?\nA: Based on the content, it highlights: '{' '.join(words[:25])}...'")
-                if len(sentences) > 1:
-                    faq_pairs.append(f"Q: What key detail is mentioned?\nA: The document states: '{sentences[min(2, len(sentences)-1)]}'")
-                return "\n\n".join(faq_pairs)
-                
-            elif "timeline" in prompt_lower:
-                years = re.findall(r'\b(19\d\d|20\d\d)\b', cleaned_content)
-                years = sorted(list(set(years)))
-                if years:
-                    timeline_events = []
-                    for yr in years[:4]:
-                        match_s = next((s for s in sentences if yr in s), "Key event occurred.")
-                        timeline_events.append(f"{yr} - {match_s}")
-                    return "\n".join(timeline_events)
-                return "00:00 - Initial Overview\n05:00 - Main Analysis Segment\n10:00 - Conclusion of Content"
-                
-            elif "short" in prompt_lower:
-                summary = " ".join(sentences[:2])
-                return f"This document summary (generated from '{filename or 'source'}') states:\n\n{summary}"
-                
-            elif "medium" in prompt_lower:
-                p1 = " ".join(sentences[:3])
-                p2 = " ".join(sentences[3:6]) if len(sentences) > 3 else "Additional context details are provided in the source file."
-                return f"{p1}\n\n{p2}"
-                
-            elif "detailed" in prompt_lower:
-                p1 = " ".join(sentences[:3])
-                p2 = " ".join(sentences[3:7]) if len(sentences) > 3 else ""
-                p3 = " ".join(sentences[7:10]) if len(sentences) > 7 else ""
-                sections = []
-                sections.append(f"### Document Analysis: {filename or 'Overview'}")
-                sections.append(p1)
-                if p2:
-                    sections.append("### Key Findings & Context")
-                    sections.append(p2)
-                if p3:
-                    sections.append("### Summary Insights")
-                    sections.append(p3)
-                return "\n\n".join(sections)
-                
-            elif "bullet" in prompt_lower:
-                points = sentences[:6]
-                return "\n".join(f"- {p}" for p in points)
-                
-            elif "takeaway" in prompt_lower:
-                points = sentences[:5]
-                formatted_points = []
-                for idx, p in enumerate(points):
-                    if ":" in p and len(p.split(":", 1)[0]) < 35 and "/" not in p.split(":", 1)[0]:
-                        parts = p.split(":", 1)
-                        label = parts[0].strip()
-                        val = parts[1].strip()
-                        if label:
-                            label = label[0].upper() + label[1:]
-                        if val:
-                            val = val[0].upper() + val[1:]
-                        formatted_points.append(f"{idx+1}. **{label}**: {val}")
-                    else:
-                        formatted_points.append(f"{idx+1}. **Key Insight**: {p}")
-                return "\n".join(formatted_points)
-                
-            elif "mcq" in prompt_lower:
-                topic = words[0].title() if words else "Document Content"
-                return (
-                    f"**Q1. What is the primary focus of this document?**\n"
-                    f"A) Comprehensive analysis of {topic}\n"
-                    f"B) Historical analysis of unrelated domains\n"
-                    f"C) General overview of peripheral subjects\n"
-                    f"D) Standard dictionary definitions\n"
-                    f"**Answer:** A — The document explicitly details the framework and application of {topic}."
-                )
-                
-            elif "json" in prompt_lower:
-                obj = {
-                    "document_name": filename or "user_upload",
-                    "estimated_words": word_count,
-                    "inferred_entities": words[:5],
-                    "status": "processed"
-                }
-                return f"```json\n{json.dumps(obj, indent=2)}\n```"
-            else:
-                return f"Extracted details from **{filename}**:\n\n" + " ".join(sentences[:3])
-
-        is_resume = filename and any(x in filename.lower() for x in ["aarjav", "resume", "jain"])
-        is_diagram = filename and any(x in filename.lower() for x in ["diagram", "png", "image"])
-        is_rag_spec = filename and any(x in filename.lower() for x in ["rag", "architecture", "pdf"])
+        # Extract timestamps and clean sentences
+        timestamp_lines = []
+        raw_lines = [l.strip() for l in cleaned_content.split('\n') if l.strip()]
+        clean_sentences = []
         
-        if is_resume:
-            if "extracted_details" in prompt_lower or "extracted" in prompt_lower:
-                return (
-                    f"**Extracted details from {filename or 'AJ_RESUMES1.pdf'}:**\n\n"
-                    f"- **Name**: **Aarjav Jain**\n"
-                    f"- **Contact Details**:\n"
-                    f"  - Email: **aarjav100jain@gmail.com**\n"
-                    f"  - Phone: **+91 7599863191**\n"
-                    f"  - LinkedIn: **linkedin.com/in/aarjav-jain-705571332**\n"
-                    f"  - GitHub: **github.com/Aarjav100jain**\n\n"
-                    f"**Education**\n"
-                    f"- **KIET Group of Institutions** — *B.Tech in Computer Science (AI & ML)* (*Sep 2024 – May 2028*)\n"
-                    f"  - Coursework: Operating Systems, Data Structures, Object-Oriented Programming, Design and Analysis of Algorithms\n"
-                    f"- **S D Public School (CBSE)** — *Intermediate (90%)* (*Apr 2021 – Jun 2022*)\n"
-                    f"- **S D Public School (CBSE)** — *High School (91%)* (*Apr 2019 – Jun 2020*)\n\n"
-                    f"**Experience**\n"
-                    f"- **CodeAlpha** — *Web Development Intern* (*Jan 2025 – Mar 2025*)\n"
-                    f"  - Spearheaded 3+ assigned web development projects, accelerating delivery speed by 20%.\n"
-                    f"- **DecodesLab** — *Full Stack Development Intern* (*Mar 2025 – May 2025*)\n"
-                    f"  - Engineered and shipped 4+ full stack software projects within defined deadlines.\n"
-                    f"- **Freelance / Self-Projects** — *Full Stack Developer* (*Jun 2025 – Jul 2025*)\n"
-                    f"  - Architected 5+ MERN stack applications with authentication and REST APIs.\n\n"
-                    f"**Projects**\n"
-                    f"- **Coding Platform Application** — *Nov 2024 – Present*\n"
-                    f"  - Online platform supporting 5+ coding challenges with real-time execution.\n"
-                    f"- **HR & Employment Management Application** — *May 2025 – Jun 2025*\n"
-                    f"  - HR system covering employee records, attendance, and payroll.\n\n"
-                    f"**Skills**\n"
-                    f"- Languages: C, C++, Java, JavaScript, Python, SQL, TypeScript\n"
-                    f"- Technologies: HTML, CSS, React, Node.js, Bootstrap, Figma, Adobe Photoshop\n\n"
-                    f"**Certifications**\n"
-                    f"- AWS Cloud Practitioner Certification\n"
-                    f"- 30-Day DSA Bootcamp"
-                )
-            elif "action_items" in prompt_lower or "action items" in prompt_lower:
-                return "1. Schedule technical interview with Aarjav Jain.\n2. Review Aarjav's GitHub repositories for full-stack React and FastAPI examples.\n3. Verify his experience with Supabase vector search integration."
-            elif "faq" in prompt_lower:
-                return "Q: What is Aarjav Jain's primary area of expertise?\nA: Full-stack AI software engineering, RAG pipelines, pgvector databases, and React frontends.\n\nQ: Does he have experience with authentication?\nA: Yes, he has integrated Clerk SDKs and FastAPI JWT verification middleware in SaaS applications."
-            elif "timeline" in prompt_lower:
-                return "2020-2022 - Began Software Engineering, focus on Python and databases.\n2022-2024 - Led full-stack SaaS project architectures and React integration.\n2024-2026 - Specialized in Multimodal AI systems, LLM routers, and Supabase RAG architectures."
-            elif "short" in prompt_lower:
-                return "This PDF contains Aarjav Jain's professional resume. It highlights his work as an AI Software Engineer building full-stack React, FastAPI, and Supabase RAG applications."
-            elif "medium" in prompt_lower:
-                return "Aarjav Jain is a skilled Software Engineer with specialized experience in AI SaaS development. He designs high-performance database schemas using pgvector and hooks up multi-LLM providers like OpenAI, Gemini, and Claude.\n\nHis project logs highlight strong integration capabilities with Clerk authentication, Nginx secure SSL gateways, and background worker queues."
-            elif "detailed" in prompt_lower:
-                return "### Aarjav Jain - Professional Profile Summary\n\n- **Professional Summary**: AI-focused developer building end-to-end full-stack systems with Python and TypeScript.\n- **Technical Experience**: Proficient in FastAPI, React 19, Vite, Tailwind CSS, PostgreSQL, Redis, Celery, and Nginx.\n- **Highlighted Work**: Designed and built multimodal synthesis platforms supporting documents, vision images, audio Whisper transcripts, and ad-free web crawlers."
-            elif "bullet" in prompt_lower:
-                return "- Professional resume of Aarjav Jain, full-stack AI software engineer.\n- Core competencies: Python, FastAPI, React 19, TypeScript, and pgvector databases.\n- Experience in security hardening: TLS 1.3, CSP, CORS, and JWT session handling."
-            elif "takeaway" in prompt_lower:
-                return "1. **Experienced AI Developer**: Solid background in scalable RAG architectures.\n2. **Full-Stack Proficiency**: Mastery of React 19 frontends and FastAPI backends.\n3. **Production Ready**: Builds apps with Docker, Celery queues, and strict security headers."
-
-            elif "mcq" in prompt_lower:
-                return (
-                    f"**Q1. Which database system is Aarjav Jain highly experienced with for vector storage?**\n"
-                    f"A) MongoDB\n"
-                    f"B) Supabase Postgres with pgvector\n"
-                    f"C) SQLite\n"
-                    f"D) Redis\n"
-                    f"**Answer:** B — Aarjav Jain's resume explicitly highlights pgvector database integration for semantic retrieval.\n\n"
-                    f"**Q2. What is Aarjav Jain's degree major?**\n"
-                    f"A) B.Tech in Computer Science (AI & ML)\n"
-                    f"B) B.Tech in Information Technology\n"
-                    f"C) B.Sc in Data Science\n"
-                    f"D) Master of Computer Applications\n"
-                    f"**Answer:** A — His resume states he is pursuing B.Tech in Computer Science (AI & ML) at KIET Group of Institutions."
-                )
-            elif "json" in prompt_lower:
-                return "```json\n{\n  \"candidate\": \"Aarjav Jain\",\n  \"role\": \"AI Software Engineer\",\n  \"skills\": [\"FastAPI\", \"React 19\", \"Supabase\", \"pgvector\", \"TypeScript\"],\n  \"status\": \"recommended\"\n}\n```"
+        for line in raw_lines:
+            # Match timestamp format [mm:ss] or [hh:mm:ss]
+            ts_match = re.match(r'^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.*)', line)
+            if ts_match:
+                time_str = ts_match.group(1)
+                text_part = ts_match.group(2).strip()
+                if text_part:
+                    timestamp_lines.append((time_str, text_part))
+                    clean_sentences.append(text_part)
             else:
-                return (
-                    f"### Detailed Archivist Grounded Response - Aarjav Jain's Resume\n\n"
-                    f"Based on the professional profile of **Aarjav Jain**, the document contains the following specific, granular details:\n\n"
-                    f"1. **Core Architectural & AI Expertise**:\n"
-                    f"   - **Vector Grounding (RAG)**: Experienced in chunking textual and tabular data and indexing it inside **Supabase Postgres** using the `pgvector` extension. Optimized cosine similarity queries with HNSW indexing.\n"
-                    f"   - **Multi-LLM Integrations**: Hooked up token trackers, latency counters, and dynamic cost metrics for GPT-4, Gemini, Claude, and local models (Ollama/Llama3).\n"
-                    f"   - **Background Ingestion Workers**: Set up asynchronous queues with **Redis** and **Celery** to manage long-running PDF extraction, Vision OCR, and speech Whisper conversions.\n\n"
-                    f"2. **Full-Stack Software Skills**:\n"
-                    f"   - **Frontend Engineering**: Proficient in building robust, interactive Single Page Applications (SPAs) with **React 19**, **Vite**, **TypeScript**, and Tailwind CSS. Employs clean state management, modular components, and responsive panels.\n"
-                    f"   - **Backend API Engineering**: Experienced in designing scalable REST APIs with **FastAPI** (Python), routing middleware, CORS policy configurations, and Clerk JWT verification.\n\n"
-                    f"3. **Security & Deployment**:\n"
-                    f"   - Configured secure reverse proxy routing using **Nginx** featuring TLS 1.3 protocol encryption, Content Security Policies (CSP), and strict header verification."
-                )
+                stripped_line = re.sub(r'\[\d{1,2}:\d{2}(?::\d{2})?\]', '', line).strip()
+                if stripped_line and not stripped_line.startswith("Source:") and not stripped_line.startswith("URL:"):
+                    for s in re.split(r'(?<=[.!?])\s+', stripped_line):
+                        s_cleaned = s.strip()
+                        if s_cleaned and len(s_cleaned) > 5:
+                            clean_sentences.append(s_cleaned)
 
-        elif is_diagram:
-            if "extracted_details" in prompt_lower or "extracted" in prompt_lower:
-                return (
-                    f"**Extracted details from {filename or 'System_Architecture_Diagram.png'}:**\n\n"
-                    f"- **Title**: **System Architecture Flowchart**\n"
-                    f"- **Summary**: Visual flow chart representing system node layouts, highlighting Vite client, FastAPI gateway, background Celery queue, and database layer.\n"
-                    f"- **Key Findings**:\n"
-                    f"  - **Client Interface Zone**: Vite-based SPA utilizing React 19.\n"
-                    f"  - **Network Gateway**: Nginx termination layer enforcing TLS 1.3 protocol encryption.\n"
-                    f"  - **Background Worker Engine**: Redis queue delegating long ingestion jobs to Celery workers.\n"
-                    f"- **Data/Metrics**:\n"
-                    f"  - Vector DB: **Supabase Postgres with pgvector** storing 1536-dimensional embeddings.\n"
-                    f"  - API Gateway Port: **Port 8080** running FastAPI/Uvicorn."
-                )
-            elif "action_items" in prompt_lower or "action items" in prompt_lower:
-                return "1. Verify port bindings for dev servers to prevent Docker conflicts.\n2. Enable HTTPS TLS 1.3 protocol inside the Nginx reverse proxy configuration.\n3. Set up health check status endpoints."
-            elif "faq" in prompt_lower:
-                return "Q: What is the main layout described in the diagram?\nA: It shows the flow from files/images ingestion down to Celery workers, pgvector database indexing, and client rendering.\n\nQ: Is Nginx present?\nA: Yes, Nginx acts as the secure TLS 1.3 reverse proxy handling incoming traffic."
-            elif "timeline" in prompt_lower:
-                return "01. Client uploads diagram file.\n02. File is processed via Tesseract / Vision model to extract layout context.\n03. Layout results and labels land in Supabase pgvector."
-            elif "short" in prompt_lower:
-                return "This image shows the technical system architecture flowchart for the Multimodal AI Summarizer, outlining frontend, backend, workers, and database layouts."
-            elif "medium" in prompt_lower:
-                return "The diagram presents a multi-tier SaaS layout. The client browser communicates via Vite proxy with the FastAPI API server, which delegates long OCR and embedding jobs to Celery workers with a Redis queue.\n\nThe database layer utilizes Supabase Postgres with pgvector, and Nginx terminates secure HTTPS SSL connections."
-            elif "detailed" in prompt_lower:
-                return "### System Architecture Analysis\n\n- **Client Layer**: React 19 web interface utilizing dynamic 3-zone command widgets.\n- **Network Gateway**: Nginx reverse proxy running TLS 1.3 and security headers.\n- **Application Server**: FastAPI Python REST API running on port 8080.\n- **Data Store**: Supabase Postgres with pgvector storing 1536-dimensional embeddings."
-            elif "bullet" in prompt_lower:
-                return "- Visual flow chart representing system node layouts.\n- Details communication paths between React, FastAPI, Redis, and Postgres.\n- Illustrates background task queue routing for long worker scripts."
-            elif "takeaway" in prompt_lower:
-                return "1. **Decoupled Architecture**: Uses Celery queues for processing vision data.\n2. **Enhanced Security**: TLS 1.3 reverse proxy termination.\n3. **Unified Retrieval**: Centralized pgvector repository."
+        if not clean_sentences:
+            clean_sentences = [l for l in raw_lines if len(l) > 5] or ["Uploaded reference content successfully processed."]
 
-            elif "mcq" in prompt_lower:
-                return (
-                    f"**Q1. What process acts as the reverse proxy in the architecture?**\n"
-                    f"A) Uvicorn\n"
-                    f"B) Nginx\n"
-                    f"C) Redis\n"
-                    f"D) Celery\n"
-                    f"**Answer:** B — Nginx acts as the unified security boundary and terminates secure TLS 1.3 reverse proxy connections."
-                )
-            elif "json" in prompt_lower:
-                return "```json\n{\n  \"diagram_type\": \"System Architecture\",\n  \"components\": [\"React 19\", \"FastAPI\", \"Celery\", \"Redis\", \"pgvector\"],\n  \"proxy\": \"Nginx TLS 1.3\"\n}\n```"
+        doc_title = filename or "Uploaded Source Document"
+
+        doc_title = filename or "Uploaded Source Document"
+
+        # 1. TIMELINE Breakdown
+        if "timeline" in prompt_lower:
+            if timestamp_lines:
+                res_lines = [f"**Chronological Video Timeline & Key Segments ({doc_title}):**\n"]
+                step = max(1, len(timestamp_lines) // 5)
+                for i in range(0, min(len(timestamp_lines), step * 5), step):
+                    ts, txt = timestamp_lines[i]
+                    res_lines.append(f"- **[{ts}]** — {txt}")
+                return "\n".join(res_lines)
             else:
-                return (
-                    f"### Detailed Archivist Grounded Response - System Architecture Diagram\n\n"
-                    f"The uploaded image file **{filename}** shows a detailed breakdown of the application architecture:\n\n"
-                    f"1. **Client Interface Zone (React)**:\n"
-                    f"   - A modular SPA built on React 19 and Vite. Contains a 3-zone layout (Header, Left Catalog Panel, and Right Canvas Desk).\n"
-                    f"   - Employs a collapsible bottom drawer console for chatting with active documents.\n\n"
-                    f"2. **Network & Proxy (Nginx)**:\n"
-                    f"   - Acts as the unified security boundary, mapping host names, enforcing HTTPS TLS 1.3 encryption, and preventing direct IP exposures.\n\n"
-                    f"3. **API & Engine Layer (FastAPI)**:\n"
-                    f"   - Python server running Uvicorn on port 8080.\n"
-                    f"   - Orchestrates semantic vector chunking, OCR engines (Tesseract), Whisper Speech SDKs, and multi-LLM cost/token logging.\n\n"
-                    f"4. **Worker Queue (Redis & Celery)**:\n"
-                    f"   - Delegates heavy parsing and scraping jobs to background workers, ensuring frontends remain responsive during upload operations.\n\n"
-                    f"5. **Database Layer (Supabase)**:\n"
-                    f"   - Uses Postgres with pgvector for storing 1536-dimensional embeddings. Indexes columns using cosine similarity for high-speed retrieval."
-                )
+                years = sorted(list(set(re.findall(r'\b(19\d\d|20\d\d)\b', cleaned_content))))
+                if years:
+                    res_lines = [f"**Chronological Event Timeline ({doc_title}):**\n"]
+                    for yr in years[:5]:
+                        match_s = next((s for s in clean_sentences if yr in s), "Key event milestone.")
+                        res_lines.append(f"- **{yr}** — {match_s}")
+                    return "\n".join(res_lines)
+                else:
+                    res_lines = [f"**Sequential Content Breakdown ({doc_title}):**\n"]
+                    for idx, s in enumerate(clean_sentences[:5]):
+                        res_lines.append(f"- **Segment {idx+1}** — {s}")
+                    return "\n".join(res_lines)
 
+        # 2. KEY TAKEAWAYS
+        elif "takeaway" in prompt_lower or "takeaways" in prompt_lower:
+            res_lines = [f"**Key Takeaways from {doc_title}:**\n"]
+            titles = ["Executive Overview", "Primary Insight", "Core Technical Detail", "Strategic Outcome", "Key Conclusion"]
+            for idx, s in enumerate(clean_sentences[:5]):
+                t_label = titles[idx] if idx < len(titles) else f"Key Point {idx+1}"
+                res_lines.append(f"- **{t_label}** — {s}")
+            return "\n".join(res_lines)
+
+        # 3. BULLET SUMMARY
+        elif "bullet" in prompt_lower:
+            res_lines = [f"**Key Point Summary — {doc_title}:**\n"]
+            for s in clean_sentences[:6]:
+                res_lines.append(f"- {s}")
+            return "\n".join(res_lines)
+
+        # 4. SHORT SUMMARY
+        elif "short" in prompt_lower:
+            p1 = " ".join(clean_sentences[:2])
+            return f"**Short Summary ({doc_title}):**\n\n{p1}"
+
+        # 5. MEDIUM SUMMARY
+        elif "medium" in prompt_lower:
+            p1 = " ".join(clean_sentences[:3])
+            p2 = " ".join(clean_sentences[3:6]) if len(clean_sentences) > 3 else ""
+            return f"**Summary Overview:**\n\n{p1}\n\n{p2}".strip()
+
+        # 6. DETAILED SUMMARY
+        elif "detailed" in prompt_lower:
+            res = [f"### Executive Overview: {doc_title}"]
+            res.append(" ".join(clean_sentences[:3]))
+            if len(clean_sentences) > 3:
+                res.append("### Key Topics & Core Findings")
+                for s in clean_sentences[3:7]:
+                    res.append(f"- {s}")
+            if len(clean_sentences) > 7:
+                res.append("### Strategic Insights & Conclusion")
+                res.append(" ".join(clean_sentences[7:10]))
+            return "\n\n".join(res)
+
+        # 7. FAQ GENERATION
+        elif "faq" in prompt_lower:
+            res_lines = [f"**Frequently Asked Questions ({doc_title}):**\n"]
+            for idx, s in enumerate(clean_sentences[:4]):
+                res_lines.append(f"**Q{idx+1}: What is the primary detail regarding topic #{idx+1}?**")
+                res_lines.append(f"A: {s}\n")
+            return "\n".join(res_lines)
+
+        # 8. QUIZ / MCQ GENERATION
+        elif "mcq" in prompt_lower or "quiz" in prompt_lower:
+            res_lines = [f"**Quiz & Knowledge Assessment ({doc_title}):**\n"]
+            for idx, s in enumerate(clean_sentences[:3]):
+                words_s = [w for w in s.split() if len(w) > 3]
+                key_term = words_s[0].title() if words_s else "Core Detail"
+                res_lines.append(f"**Q{idx+1}. Which statement correctly reflects the content regarding {key_term}?**")
+                res_lines.append(f"A) {s}")
+                res_lines.append(f"B) The document excludes all discussion regarding {key_term}")
+                res_lines.append(f"C) This topic is invalid according to source references")
+                res_lines.append(f"D) None of the above")
+                res_lines.append(f"**Answer:** A — Grounded directly in source: \"{s[:80]}...\"\n")
+            return "\n".join(res_lines)
+
+        # 9. ACTION ITEMS
+        elif "action" in prompt_lower:
+            res_lines = [f"**Action Items & Next Steps ({doc_title}):**\n"]
+            for idx, s in enumerate(clean_sentences[:4]):
+                res_lines.append(f"- [ ] **Task #{idx+1}**: {s}")
+            return "\n".join(res_lines)
+
+        # 10. STRUCTURED JSON
+        elif "json" in prompt_lower:
+            obj = {
+                "document_title": doc_title,
+                "summary": " ".join(clean_sentences[:2]),
+                "key_points": clean_sentences[:5],
+                "status": "processed"
+            }
+            return f"```json\n{json.dumps(obj, indent=2)}\n```"
+
+        # 11. HTML WEBSITE SUMMARY
+        elif "html_website" in prompt_lower or "html" in prompt_lower:
+            h_lines = [f"<h2>What it is</h2>"]
+            h_lines.append(f"<p><strong style=\"color:#2563eb;\">{doc_title}</strong> — {' '.join(clean_sentences[:2])}</p>")
+            h_lines.append("<h2>Key Features</h2>")
+            h_lines.append("<ul>")
+            for s in clean_sentences[2:6]:
+                words_s = s.split()
+                f_name = " ".join(words_s[:3]) if words_s else "Feature"
+                rest = " ".join(words_s[3:]) if len(words_s) > 3 else s
+                h_lines.append(f"  <li><span style=\"color:#059669; font-weight:600;\">{f_name}</span>: {rest}</li>")
+            h_lines.append("</ul>")
+            h_lines.append("<h2>Who it's for</h2>")
+            h_lines.append(f"<p>Designed for professionals, researchers, and teams analyzing reference material from {doc_title}.</p>")
+            h_lines.append("<p><strong>Bottom Line:</strong> " + (clean_sentences[0] if clean_sentences else "Grounded website content summary.") + "</p>")
+            return "\n".join(h_lines)
+
+        # 12. EXTRACTED DETAILS / DEFAULT
         else:
-            # Fallback to standard specs
-            if "extracted_details" in prompt_lower or "extracted" in prompt_lower:
-                return (
-                    f"**Extracted details from {filename or 'spec.pdf'}:**\n\n"
-                    f"- **Title**: **Technical Design & Core Pipelines**\n"
-                    f"- **Summary**: In-depth architecture specs covering multimodal ingestion, vector store schemas, LLM routing endpoints, and security boundaries.\n"
-                    f"- **Key Findings**:\n"
-                    f"  - **Ingestion Channels**: Features full OCR capabilities for processing image/PDF scans alongside speech Whisper API triggers.\n"
-                    f"  - **Semantic Chunking**: Employs recursive text cleaners dividing input into 800-character segments.\n"
-                    f"  - **Authentication & Guardrails**: Enforces Clerk SSO session locks, CORS origins, and pgvector cosine grounding.\n"
-                    f"- **Data/Metrics**:\n"
-                    f"  - Vector DB: **pgvector** storing 1536-dimensional embeddings."
-                )
-            elif "action_items" in prompt_lower or "action items" in prompt_lower:
-                return "1. Schedule follow-up sync with technical leads.\n2. Review system architecture and database vector indexing.\n3. Validate Clerk security middleware configuration."
-            elif "faq" in prompt_lower:
-                return "Q: What file formats are supported?\nA: PDFs, Images, MP3/WAV Audio, MP4 Videos, Web URLs, and plain text.\n\nQ: How is data privacy maintained?\nA: All data is encrypted in transit via TLS 1.3 and at rest with Supabase pgvector."
-            elif "timeline" in prompt_lower:
-                return "00:00 - Introduction and background overview\n05:15 - Key architectural choices and RAG setup\n12:30 - Live demonstration of multimodal summarization\n22:10 - Future roadmap and conclusion"
-            elif "short" in prompt_lower:
-                return "This document outlines a production-ready AI-Powered Multimodal Summarization SaaS Platform. It leverages FastAPI, Supabase pgvector, and a unified multi-LLM router to process PDFs, images, URLs, and audio."
-            elif "medium" in prompt_lower:
-                return "The architecture represents a scalable solution for content analysis and synthesis. Content is recursively chunked into 800-character segments, embedded in Supabase, and queried dynamically to provide grounded, zero-hallucination summaries.\n\nUsers can chat with documents through a conversational RAG interface that issues exact page and timestamp citations."
-            elif "detailed" in prompt_lower:
-                return "### Technical Design & Core Pipelines\n\n1. **Multimodal Ingestion Layer**: Digital PDFs, Vision OCR scans, Whisper speech-to-text, and web crawlers.\n2. **pgvector Storage**: 1536-dimensional embeddings with cosine similarity retrieval.\n3. **LLM Routing Engine**: Tracks tokens, latency, and estimated cost across multiple providers.\n4. **Security Hardening**: Enforces TLS 1.3, strict CORS origins, and Clerk JWT verification."
-            elif "bullet" in prompt_lower:
-                return "- Supports PDFs, Images, Video, Audio, Web URLs, and Text inputs.\n- Uses Supabase pgvector for vector retrieval.\n- Unified LLM metrics (Token counts, response time, estimated cost).\n- Collapsible Marginalia Ask Drawer for conversation history."
-            elif "takeaway" in prompt_lower:
-                return "1. **Zero Hallucination Guarantee**: Grounded vector search context.\n2. **Hardened SSL Connection**: TLS 1.3 reverse proxy configuration.\n3. **Cost Accountability**: Calculates cost per request dynamically."
-
-            elif "mcq" in prompt_lower:
-                return (
-                    f"**Q1. What stores vector embeddings in this platform?**\n"
-                    f"A) SQLite\n"
-                    f"B) pgvector\n"
-                    f"C) Redis\n"
-                    f"D) LocalStorage\n"
-                    f"**Answer:** B — pgvector is the chosen database extension in Supabase for vector indexing."
-                )
-            elif "json" in prompt_lower:
-                return "```json\n{\n  \"engine\": \"SummaMind Studio\",\n  \"status\": \"grounded\",\n  \"database\": \"pgvector\",\n  \"security\": \"TLS 1.3 Hardened\"\n}\n```"
-            else:
-                return (
-                    f"### Detailed Grounded Response - Technical Specification\n\n"
-                    f"Here is a comprehensive breakdown of the specification document details:\n\n"
-                    f"- **Ingestion Channels**: Features full OCR capabilities for processing image/PDF scans alongside speech Whisper API triggers for WAV/MP3 files.\n"
-                    f"- **Semantic Chunking**: Employs recursive text cleaners that divide inputs into 800-character segments with a 150-character overlap to prevent loss of context.\n"
-                    f"- **Metrics & Logging**: Captures raw prompt/completion tokens, server latency, and exact monetary costs per request.\n"
-                    f"- **Authentication & Guardrails**: Enforces Clerk SSO session locks, CORS origin restrictions, and pgvector cosine grounding to prevent LLM hallucinations."
-                )
+            res_lines = [f"**Extracted Details & Content Analysis ({doc_title}):**\n"]
+            for s in clean_sentences[:6]:
+                if ":" in s and len(s.split(":", 1)[0]) < 35:
+                    parts = s.split(":", 1)
+                    res_lines.append(f"- **{parts[0].strip()}**: {parts[1].strip()}")
+                else:
+                    res_lines.append(f"- {s}")
+            return "\n".join(res_lines)
 
     @staticmethod
     def _route_smart_model(prompt: str, filename: Optional[str] = None) -> str:

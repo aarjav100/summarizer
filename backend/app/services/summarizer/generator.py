@@ -2,6 +2,17 @@ from typing import List, Dict, Any, Optional
 from app.services.llm.provider import LLMProviderService
 from app.schemas.schemas import SummaryItemResponse, SummaryResponse, LLMUsageMetrics
 
+EXPERT_SUMMARIZER_SYSTEM_PROMPT = (
+    "You are an expert summarizer. Your job is to turn the given content into a summary that is clear, information-dense, and genuinely useful to someone who hasn't read the original.\n\n"
+    "Follow these rules:\n"
+    "1. CAPTURE WHAT MATTERS: Extract core arguments, key facts, numbers, names, dates, and conclusions. State main thesis near the top.\n"
+    "2. STRUCTURE FOR READABILITY: Use short paragraphs or bullet points with clearly labeled sections. Avoid dense walls of text.\n"
+    "3. WRITE IN PLAIN LANGUAGE: Explain technical terms, jargon, or acronyms simply. Avoid filler phrases.\n"
+    "4. STAY ACCURATE: Do not add ungrounded information or hallucinate facts. State ambiguities clearly.\n"
+    "5. MATCH LENGTH TO CONTENT: Short input -> concise summary; Long input -> structured comprehensive summary.\n"
+    "6. END WITH VALUE: End with a 'Key Takeaway' or 'Why it matters' section when relevant."
+)
+
 class SummaryGeneratorService:
     SUMMARY_PROMPTS = {
         "short": (
@@ -17,7 +28,7 @@ class SummaryGeneratorService:
             "Output only the summary paragraph, nothing else."
         ),
         "detailed": (
-            "Provide a detailed, well-organized summary of the following document. Use Markdown formatting: **bold headers** for each major section detected in the document, bullet points for individual entries within a section, nested sub-bullets for supporting details, and *italics* for dates. Cover all meaningful information — do not skip sections. Keep tone concise and professional.\n\n"
+            "Provide a detailed, well-organized summary of the following document. Use Markdown formatting: **bold headers** for each major section detected in the document, bullet points for individual entries within a section, nested sub-bullets for supporting details, and *italics* for dates. Cover all meaningful information — do not skip sections. End with a **Key Takeaway** section.\n\n"
             "Document: {file_name}\n"
             "Content: {extracted_text}\n\n"
             "Output only the formatted summary, nothing else."
@@ -100,6 +111,35 @@ class SummaryGeneratorService:
             "Document: {file_name}\n"
             "Content: {extracted_text}\n\n"
             "Output only the JSON object, nothing else."
+        ),
+        "html_website": (
+            "You are a professional content summarizer for a web app. Given the content of a website or URL, produce a summary that is well-structured, information-rich, and visually easy to scan.\n\n"
+            "OUTPUT FORMAT: Return valid HTML (no <html>/<head>/<body> tags — just the inner content) so it can be directly rendered in a web app.\n\n"
+            "FORMATTING RULES:\n"
+            "1. Use <h2> for main section headings and <h3> for sub-headings.\n"
+            "2. Use <ul><li> for feature lists, bullet points, or key facts.\n"
+            "3. Highlight important keywords, product names, numbers, and key terms using:\n"
+            "   - <strong style=\"color:#2563eb;\"> for the single most important term/name\n"
+            "   - <span style=\"color:#059669; font-weight:600;\"> for key features or benefits\n"
+            "   - <span style=\"color:#d97706; font-weight:600;\"> for warnings, caveats, or things to verify\n"
+            "   - <em> for supporting/secondary emphasis\n"
+            "4. Keep paragraphs short (2-3 sentences max).\n"
+            "5. Do not overuse colors — only highlight genuinely important words.\n\n"
+            "CONTENT RULES:\n"
+            "1. Structure the summary into clear sections:\n"
+            "   - What it is (one-line definition + purpose)\n"
+            "   - Key Features (bulleted, with feature names highlighted)\n"
+            "   - Who it's for (target audience)\n"
+            "   - Pricing / Cost (if applicable)\n"
+            "   - Privacy / Trust notes (if applicable)\n"
+            "   - Contact / Next steps (if applicable)\n"
+            "2. Prioritize facts, numbers, names, and concrete details over vague description.\n"
+            "3. Do not hallucinate — only include what is present in the source content.\n"
+            "4. If something seems questionable, add a short '<span style=\"color:#d97706; font-weight:600;\">⚠️ Worth Checking</span>' note.\n"
+            "5. End with a one-line 'Bottom Line' takeaway in bold.\n\n"
+            "Document: {file_name}\n"
+            "Content: {extracted_text}\n\n"
+            "Output only the inner HTML content, nothing else."
         )
     }
 
@@ -125,7 +165,12 @@ class SummaryGeneratorService:
                 file_name=filename or "source",
                 extracted_text=content[:4000]
             )
-            return LLMProviderService.generate_completion(prompt=prompt, model_id=model_id, filename=filename)
+            return LLMProviderService.generate_completion(
+                prompt=prompt,
+                system_prompt=EXPERT_SUMMARIZER_SYSTEM_PROMPT,
+                model_id=model_id,
+                filename=filename
+            )
 
         # Generate each summary type in parallel to prevent gateway timeout
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(requested_types))) as executor:

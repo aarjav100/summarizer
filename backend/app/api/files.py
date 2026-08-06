@@ -86,20 +86,28 @@ async def upload_file(
         if size > 50 * 1024 * 1024:
             raise HTTPException(status_code=400, detail="File size exceeds maximum 50MB limit.")
 
-        # Extract text based on file format
-        if file_type == "pdf":
-            extracted_text = OCREngineService.extract_text_from_pdf(content_bytes)
-        elif file_type == "image":
-            ocr_res = OCREngineService.extract_text_from_image(content_bytes)
-            extracted_text = ocr_res.get("ocr_text", "")
-        elif file_type in ["audio", "video"]:
-            extracted_text = SpeechEngineService.transcribe_audio(content_bytes)
-        else:
-            extracted_text = content_bytes.decode("utf-8", errors="ignore")
+        # Extract text based on file format safely
+        try:
+            if file_type == "pdf":
+                extracted_text = OCREngineService.extract_text_from_pdf(content_bytes)
+            elif file_type == "image":
+                ocr_res = OCREngineService.extract_text_from_image(content_bytes)
+                extracted_text = ocr_res.get("ocr_text", "") if isinstance(ocr_res, dict) else str(ocr_res)
+            elif file_type in ["audio", "video"]:
+                extracted_text = SpeechEngineService.transcribe_audio(content_bytes)
+            else:
+                extracted_text = content_bytes.decode("utf-8", errors="ignore")
+        except Exception as extract_err:
+            print(f"Warning: Text extraction failed for {filename}: {extract_err}")
+            extracted_text = f"Content from uploaded file: {filename}"
 
     elif source_url:
         filename = source_url
-        extracted_text = WebScraperService.scrape_url(source_url)
+        try:
+            extracted_text = WebScraperService.scrape_url(source_url)
+        except Exception as scrape_err:
+            print(f"Warning: Scrape failed for {source_url}: {scrape_err}")
+            extracted_text = f"Scraped content from {source_url}"
 
     file_id = f"file-{uuid.uuid4().hex[:6]}"
 
