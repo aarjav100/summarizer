@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 import time
 
 from app.config.settings import settings
@@ -119,6 +119,10 @@ def health_check():
         "environment": settings.ENV,
         "database": db_status
     }
+
+@app.get("/ads.txt", response_class=PlainTextResponse, tags=["SEO"])
+def get_ads_txt():
+    return "google.com, pub-8816514726616311, DIRECT, f08c47fec0942fa0\n"
 
 if __name__ == "__main__":
     import uvicorn
