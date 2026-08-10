@@ -97,7 +97,7 @@ export const PrivacyPolicyPage: React.FC = () => {
           </p>
           <ul style={{ paddingLeft: '20px', margin: '8px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <li>Account data is retained for the duration of your account's active status plus 90 days following account closure.</li>
-            <li>Document embeddings and associated metadata are retained until you explicitly delete them from the Reading Room workspace or close your account.</li>
+            <li><strong style={{ color: '#EDE6D6' }}>15-Day Automatic File Deletion:</strong> All uploaded document files, extracted text, temporary processing files, sentence chunks, vector embeddings, database records, and associated chat session histories are automatically and permanently deleted 15 days after upload.</li>
             <li>Anonymized usage telemetry may be retained for up to 24 months for system performance analysis.</li>
           </ul>
           <p style={{ marginTop: '12px' }}>

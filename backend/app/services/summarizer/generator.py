@@ -151,19 +151,27 @@ class SummaryGeneratorService:
         filename: Optional[str] = None,
         file_id: str = "file-demo-id"
     ) -> SummaryResponse:
-        from typing import Optional
-        import concurrent.futures
-        summaries: List[SummaryItemResponse] = []
-        total_prompt_tokens = 0
-        total_completion_tokens = 0
-        total_cost = 0.0
-        max_latency = 0.0
+        from app.services.nlp.processor import NLPProcessorService
+        
+        # NLP Preprocessing: Text cleaning, normalization, and context selection
+        try:
+            cleaned_text = NLPProcessorService.clean_and_normalize_text(content)
+            if len(cleaned_text) > 4000:
+                important_sentences = NLPProcessorService.detect_important_sentences(cleaned_text, max_sentences=25)
+                processed_content = "\n".join(important_sentences)
+                if not processed_content.strip():
+                    processed_content = cleaned_text
+            else:
+                processed_content = cleaned_text or content
+        except Exception as nlp_err:
+            print(f"[NLP PREPROCESSING FALLBACK] Falling back to standard pipeline: {nlp_err}")
+            processed_content = content
 
         def get_single_summary(stype: str):
             instruction = SummaryGeneratorService.SUMMARY_PROMPTS.get(stype, "Summarize the following text effectively.")
             prompt = instruction.format(
                 file_name=filename or "source",
-                extracted_text=content[:4000]
+                extracted_text=processed_content[:6000]
             )
             return LLMProviderService.generate_completion(
                 prompt=prompt,

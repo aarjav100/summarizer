@@ -48,6 +48,9 @@ class FileItem(Base):
     status = Column(String, default="pending")   # 'pending', 'processing', 'completed', 'failed'
     is_favorite = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    cleanup_status = Column(String, default="active", index=True) # 'active', 'expired', 'deleted'
     
     project = relationship("Project", back_populates="files")
     chunks = relationship("DocumentChunk", back_populates="file", cascade="all, delete-orphan")

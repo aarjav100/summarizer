@@ -362,10 +362,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             </div>
           )}
 
+          {/* Data Retention Notice */}
+          <div style={{ marginTop: '16px', fontSize: '11px', color: '#7A8E8A', fontFamily: "'IBM Plex Mono', monospace", display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>🔒</span>
+            <span>Uploaded files and related processing data are automatically deleted after 15 days.</span>
+          </div>
+
           {/* Action Row */}
           <div
             style={{
-              marginTop: '24px',
+              marginTop: '16px',
               borderTop: '1px solid var(--border)',
               paddingTop: '16px',
               display: 'flex',

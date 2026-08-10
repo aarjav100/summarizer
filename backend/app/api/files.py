@@ -140,6 +140,12 @@ async def upload_file(
             db.add(db_project)
             db.commit()
 
+        from datetime import timedelta
+        from app.services.nlp.processor import NLPProcessorService
+
+        now = datetime.utcnow()
+        expires = now + timedelta(days=15)
+
         # Create database file record
         db_file = FileItem(
             id=file_id,
@@ -152,14 +158,20 @@ async def upload_file(
             ocr_extracted_text=extracted_text,
             status="completed",
             is_favorite=False,
-            created_at=datetime.utcnow()
+            created_at=now,
+            uploaded_at=now,
+            expires_at=expires,
+            cleanup_status="active"
         )
         db.add(db_file)
         db.commit()
 
-        # Chunk the text and generate embeddings (non-critical — don't fail upload if this errors)
+        # Chunk the text using NLP structure-aware chunking and generate embeddings
         try:
-            chunks = RAGPipelineService.split_into_chunks(extracted_text)
+            chunks = NLPProcessorService.structure_aware_chunking(extracted_text)
+            if not chunks:
+                chunks = RAGPipelineService.split_into_chunks(extracted_text)
+
             for chunk in chunks:
                 embedding_vector = RAGPipelineService.generate_dummy_embedding(chunk["content"])
                 
@@ -168,8 +180,8 @@ async def upload_file(
                     file_id=file_id,
                     chunk_index=chunk["chunk_index"],
                     content=chunk["content"],
-                    page_number=chunk["page_number"],
-                    timestamp_seconds=chunk["timestamp_seconds"],
+                    page_number=chunk.get("page_number", 1),
+                    timestamp_seconds=chunk.get("timestamp_seconds", 0.0),
                     embedding=embedding_vector
                 )
                 db.add(db_chunk)
@@ -202,3 +214,10 @@ async def upload_file(
         is_favorite=False,
         created_at=datetime.utcnow()
     )
+
+@router.post("/cleanup")
+def trigger_retention_cleanup(db: Session = Depends(get_db)):
+    """Triggers the 15-day automated data retention cleanup operation."""
+    from app.services.retention.cleanup import RetentionCleanupService
+    return RetentionCleanupService.purge_expired_files(db)
+

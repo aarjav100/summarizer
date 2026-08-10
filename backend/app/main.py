@@ -14,9 +14,26 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+import asyncio
+
+async def scheduled_retention_cleanup():
+    """Background loop that executes 15-day data retention cleanup once every 24 hours."""
+    while True:
+        try:
+            from app.database.connection import SessionLocal
+            from app.services.retention.cleanup import RetentionCleanupService
+            db = SessionLocal()
+            RetentionCleanupService.purge_expired_files(db)
+            db.close()
+        except Exception as e:
+            print(f"[BACKGROUND CLEANUP TASK WARNING] {e}")
+        # Run every 24 hours
+        await asyncio.sleep(86400)
+
 @app.on_event("startup")
 def on_startup():
     init_db()
+    asyncio.create_task(scheduled_retention_cleanup())
 
 # Global Exception Handlers to guarantee CORS headers on error responses
 @app.exception_handler(Exception)

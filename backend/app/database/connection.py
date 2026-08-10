@@ -59,7 +59,7 @@ def get_db():
         db.close()
 
 def init_db():
-    """Initializes schema tables in Supabase Postgres on startup."""
+    """Initializes schema tables in Supabase Postgres on startup and ensures retention columns exist."""
     try:
         # Enable pgvector extension before creating tables
         with engine.begin() as conn:
@@ -67,6 +67,13 @@ def init_db():
         
         # Create all tables defined in models.py
         Base.metadata.create_all(bind=engine)
-        print("Supabase database tables successfully initialized.")
+        
+        # Ensure 15-day data retention columns exist on existing databases
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE files ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();"))
+            conn.execute(text("ALTER TABLE files ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() + INTERVAL '15 days';"))
+            conn.execute(text("ALTER TABLE files ADD COLUMN IF NOT EXISTS cleanup_status VARCHAR DEFAULT 'active';"))
+
+        print("Supabase database tables and retention schema successfully initialized.")
     except Exception as e:
         print(f"Database initialization warning: {e}")
