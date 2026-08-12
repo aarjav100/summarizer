@@ -28,17 +28,15 @@
       ]
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://summamind-backend.onrender.com/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://summamind-backend.onrender.com/api/:path*"
     },
     {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/((?!api/|.*\\..*).*)",
+      "destination": "/index.html"
     }
   ]
 }
+
