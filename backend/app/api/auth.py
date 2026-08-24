@@ -75,6 +75,36 @@ def verify_clerk_token(authorization: Optional[str] = Header(None)) -> dict:
         
     raise HTTPException(status_code=401, detail="Unable to verify token credentials.")
 
+def get_or_create_db_user(db, payload: dict):
+    """Retrieves existing database User or creates a new one from verified Clerk JWT payload."""
+    from app.database.models import User
+    
+    clerk_id = payload.get("sub", "user_clerk_9999")
+    user_email = payload.get("email", f"{clerk_id}@summarizer.ai")
+    full_name = payload.get("name", "Active Reader")
+
+    user = db.query(User).filter(User.clerk_id == clerk_id).first()
+    if not user:
+        user_id = f"usr_{clerk_id.replace('user_', '')[:12]}"
+        user = User(
+            id=user_id,
+            clerk_id=clerk_id,
+            email=user_email,
+            full_name=full_name
+        )
+        db.add(user)
+        try:
+            db.commit()
+            db.refresh(user)
+        except Exception:
+            db.rollback()
+            user = db.query(User).filter(User.clerk_id == clerk_id).first()
+            if not user:
+                # Fallback user if unique constraint on email hit
+                user = db.query(User).filter(User.email == user_email).first()
+
+    return user
+
 @router.get("/me", response_model=UserResponse)
 def get_current_user(payload: dict = Depends(verify_clerk_token)):
     """Verifies Clerk JWT header and returns current user info."""
@@ -88,3 +118,4 @@ def get_current_user(payload: dict = Depends(verify_clerk_token)):
         plan="pro",
         created_at=datetime.utcnow()
     )
+

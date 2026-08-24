@@ -20,6 +20,7 @@ class User(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
+    files = relationship("FileItem", back_populates="user", cascade="all, delete-orphan")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -38,6 +39,7 @@ class FileItem(Base):
     __tablename__ = "files"
     
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
     project_id = Column(String, ForeignKey("projects.id"), nullable=False)
     filename = Column(String, nullable=False)
     file_type = Column(String, nullable=False)  # 'pdf', 'image', 'video', 'audio', 'url', 'text'
@@ -47,11 +49,14 @@ class FileItem(Base):
     ocr_extracted_text = Column(Text, nullable=True)
     status = Column(String, default="pending")   # 'pending', 'processing', 'completed', 'failed'
     is_favorite = Column(Boolean, default=False)
+    is_single_use = Column(Boolean, default=True)
+    single_use_consumed = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     expires_at = Column(DateTime, nullable=False, index=True)
     cleanup_status = Column(String, default="active", index=True) # 'active', 'expired', 'deleted'
     
+    user = relationship("User", back_populates="files")
     project = relationship("Project", back_populates="files")
     chunks = relationship("DocumentChunk", back_populates="file", cascade="all, delete-orphan")
     summaries = relationship("SummaryResult", back_populates="file", cascade="all, delete-orphan")

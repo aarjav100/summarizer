@@ -44,6 +44,7 @@ class FileUploadRequest(BaseModel):
 
 class FileItemResponse(BaseModel):
     id: str
+    user_id: Optional[str] = None
     project_id: str
     filename: str
     file_type: str
@@ -52,6 +53,8 @@ class FileItemResponse(BaseModel):
     source_url: Optional[str]
     status: str
     is_favorite: bool
+    is_single_use: bool = True
+    single_use_consumed: bool = False
     created_at: datetime
     
     class Config:

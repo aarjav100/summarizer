@@ -180,6 +180,8 @@ class SummaryGeneratorService:
                 filename=filename
             )
 
+        import concurrent.futures
+
         # Generate each summary type in parallel to prevent gateway timeout
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(requested_types))) as executor:
             future_to_stype = {executor.submit(get_single_summary, stype): stype for stype in requested_types}
@@ -203,6 +205,12 @@ class SummaryGeneratorService:
                             estimated_cost_usd=0.0
                         )
                     }
+
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_cost = 0.0
+        max_latency = 0.0
+        summaries = []
 
         for stype in requested_types:
             res = results.get(stype)

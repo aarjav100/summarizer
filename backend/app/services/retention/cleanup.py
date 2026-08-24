@@ -94,3 +94,58 @@ class RetentionCleanupService:
             "errors_count": errors_count,
             "status": "completed"
         }
+
+    @staticmethod
+    def delete_file_immediately(file_id: str, user_id: str, db: Session) -> Dict[str, Any]:
+        """
+        Immediately purges a file, its vector embeddings, OCR extracted text, storage file, and DB record.
+        Verifies that requesting user_id matches file.user_id before execution.
+        """
+        file_item = db.query(FileItem).filter(FileItem.id == file_id).first()
+
+        if not file_item or file_item.cleanup_status == "deleted":
+            return {"status": "not_found", "message": "File not found or already purged"}
+
+        if user_id and file_item.user_id != user_id:
+            return {"status": "unauthorized", "message": "Access denied: Not the file owner"}
+
+        filename = file_item.filename
+        try:
+            # 1. Delete document chunks & embeddings
+            db.query(DocumentChunk).filter(DocumentChunk.file_id == file_id).delete(synchronize_session=False)
+
+            # 2. Delete summary results
+            db.query(SummaryResult).filter(SummaryResult.file_id == file_id).delete(synchronize_session=False)
+
+            # 3. Delete chat sessions & messages
+            sessions = db.query(ChatSession).filter(ChatSession.file_id == file_id).all()
+            for session in sessions:
+                db.query(ChatMessage).filter(ChatMessage.chat_id == session.id).delete(synchronize_session=False)
+                db.delete(session)
+
+            # 4. Remove physical file from storage if present
+            if file_item.storage_url and file_item.storage_url.startswith("/storage/"):
+                local_path = file_item.storage_url.replace("/storage/", "")
+                if os.path.exists(local_path):
+                    try:
+                        os.remove(local_path)
+                    except Exception as fe:
+                        print(f"[IMMEDIATE PURGE] Non-fatal physical file delete error: {fe}")
+
+            # 5. Nullify text content and mark status
+            file_item.ocr_extracted_text = None
+            file_item.storage_url = None
+            file_item.source_url = None
+            file_item.cleanup_status = "deleted"
+            file_item.single_use_consumed = True
+
+            db.delete(file_item)
+            db.commit()
+
+            print(f"[IMMEDIATE PURGE SUCCESS] Deleted file {file_id} ({filename}) for user {user_id}")
+            return {"status": "deleted", "file_id": file_id, "filename": filename}
+        except Exception as e:
+            db.rollback()
+            print(f"[IMMEDIATE PURGE ERROR] Failed to purge file {file_id}: {e}")
+            raise e
+

@@ -13,55 +13,84 @@ import uuid
 import os
 import traceback
 
+from app.api.auth import verify_clerk_token, get_or_create_db_user
+from app.services.retention.cleanup import RetentionCleanupService
+
 router = APIRouter(prefix="/files", tags=["Files"])
 
-MOCK_FILES = [
-    FileItemResponse(
-        id="file-101", project_id="proj-1", filename="LLM_Multimodal_RAG_Architecture.pdf",
-        file_type="pdf", file_size_bytes=4200000, storage_url="https://example.com/file1.pdf",
-        source_url=None, status="completed", is_favorite=True, created_at=datetime.utcnow()
-    ),
-    FileItemResponse(
-        id="file-102", project_id="proj-1", filename="System_Architecture_Diagram.png",
-        file_type="image", file_size_bytes=1500000, storage_url="https://example.com/diagram.png",
-        source_url=None, status="completed", is_favorite=False, created_at=datetime.utcnow()
-    ),
-    FileItemResponse(
-        id="file-103", project_id="proj-3", filename="https://www.youtube.com/watch?v=demo",
-        file_type="video", file_size_bytes=0, storage_url=None,
-        source_url="https://www.youtube.com/watch?v=demo", status="completed", is_favorite=False, created_at=datetime.utcnow()
-    )
-]
-
 @router.get("", response_model=List[FileItemResponse])
-def list_files(project_id: Optional[str] = None, db: Session = Depends(get_db)):
+def list_files(
+    project_id: Optional[str] = None,
+    token_payload: dict = Depends(verify_clerk_token),
+    db: Session = Depends(get_db)
+):
+    """Returns files owned strictly by the authenticated requesting user."""
+    db_user = get_or_create_db_user(db, token_payload)
+    
     try:
-        query = db.query(FileItem)
+        query = db.query(FileItem).filter(
+            FileItem.user_id == db_user.id,
+            FileItem.cleanup_status == "active"
+        )
         if project_id:
             query = query.filter(FileItem.project_id == project_id)
         db_files = query.order_by(FileItem.created_at.desc()).all()
 
-        if db_files:
-            results = []
-            for f in db_files:
-                results.append(FileItemResponse(
-                    id=f.id, project_id=f.project_id, filename=f.filename,
-                    file_type=f.file_type, file_size_bytes=f.file_size_bytes,
-                    storage_url=f.storage_url, source_url=f.source_url,
-                    status=f.status, is_favorite=f.is_favorite, created_at=f.created_at
-                ))
-            return results
-        else:
-            # Database is reachable but no files exist yet — return empty list
-            # (NOT the mocks, so the frontend knows there are genuinely no files)
-            return []
+        results = []
+        for f in db_files:
+            results.append(FileItemResponse(
+                id=f.id,
+                user_id=f.user_id,
+                project_id=f.project_id,
+                filename=f.filename,
+                file_type=f.file_type,
+                file_size_bytes=f.file_size_bytes,
+                storage_url=f.storage_url,
+                source_url=f.source_url,
+                status=f.status,
+                is_favorite=f.is_favorite,
+                is_single_use=f.is_single_use,
+                single_use_consumed=f.single_use_consumed,
+                created_at=f.created_at
+            ))
+        return results
     except Exception as e:
         print(f"Database read warning: {e}")
+        return []
 
-    # Fallback to mocks only when database is completely unreachable
-    if project_id:
-        return [f for f in MOCK_FILES if f.project_id == project_id]
-    return MOCK_FILES
+@router.get("/{file_id}", response_model=FileItemResponse)
+def get_file(
+    file_id: str,
+    token_payload: dict = Depends(verify_clerk_token),
+    db: Session = Depends(get_db)
+):
+    """Fetches a specific file. Verifies requesting user is the authenticated owner."""
+    db_user = get_or_create_db_user(db, token_payload)
+
+    file_item = db.query(FileItem).filter(
+        FileItem.id == file_id,
+        FileItem.user_id == db_user.id,
+        FileItem.cleanup_status == "active"
+    ).first()
+
+    if not file_item or file_item.single_use_consumed:
+        raise HTTPException(status_code=404, detail="File not found, expired, or access denied.")
+
+    return FileItemResponse(
+        id=file_item.id,
+        user_id=file_item.user_id,
+        project_id=file_item.project_id,
+        filename=file_item.filename,
+        file_type=file_item.file_type,
+        file_size_bytes=file_item.file_size_bytes,
+        storage_url=file_item.storage_url,
+        source_url=file_item.source_url,
+        status=file_item.status,
+        is_favorite=file_item.is_favorite,
+        is_single_use=file_item.is_single_use,
+        single_use_consumed=file_item.single_use_consumed,
+        created_at=file_item.created_at
+    )
 
 @router.post("/upload", response_model=FileItemResponse)
 async def upload_file(
@@ -70,8 +99,13 @@ async def upload_file(
     file: Optional[UploadFile] = File(None),
     source_url: Optional[str] = Form(None),
     text_content: Optional[str] = Form(None),
+    is_single_use: bool = Form(True),
+    token_payload: dict = Depends(verify_clerk_token),
     db: Session = Depends(get_db)
 ):
+    """Uploads document/file bound strictly to authenticated user_id with single-use retention."""
+    db_user = get_or_create_db_user(db, token_payload)
+
     filename = "Pasted_Text.txt"
     size = len(text_content.encode()) if text_content else 0
     extracted_text = text_content or ""
@@ -111,29 +145,16 @@ async def upload_file(
 
     file_id = f"file-{uuid.uuid4().hex[:6]}"
 
-    # Save to database — this MUST succeed for the file to persist
+    # Save to database
     try:
-        from app.database.models import User, Project
+        from app.database.models import Project
         
-        # 1. Ensure default user exists (since Project belongs to User and user_id is Not Null)
-        default_user_id = "user-default-id"
-        user_exists = db.query(User).filter(User.id == default_user_id).first()
-        if not user_exists:
-            db_user = User(
-                id=default_user_id,
-                clerk_id="clerk-default-id",
-                email="default@example.com",
-                full_name="Default User"
-            )
-            db.add(db_user)
-            db.commit()
-            
-        # 2. Ensure project exists (since FileItem belongs to Project and project_id is Not Null)
+        # Ensure project exists
         project_exists = db.query(Project).filter(Project.id == project_id).first()
         if not project_exists:
             db_project = Project(
                 id=project_id,
-                user_id=default_user_id,
+                user_id=db_user.id,
                 name="Active Workspace",
                 description="Auto-generated workspace context"
             )
@@ -146,9 +167,10 @@ async def upload_file(
         now = datetime.utcnow()
         expires = now + timedelta(days=15)
 
-        # Create database file record
+        # Create database file record linked directly to db_user.id
         db_file = FileItem(
             id=file_id,
+            user_id=db_user.id,
             project_id=project_id,
             filename=filename,
             file_type=file_type,
@@ -158,6 +180,8 @@ async def upload_file(
             ocr_extracted_text=extracted_text,
             status="completed",
             is_favorite=False,
+            is_single_use=is_single_use,
+            single_use_consumed=False,
             created_at=now,
             uploaded_at=now,
             expires_at=expires,
@@ -166,7 +190,7 @@ async def upload_file(
         db.add(db_file)
         db.commit()
 
-        # Chunk the text using NLP structure-aware chunking and generate embeddings
+        # Chunk text using NLP structure-aware chunking and generate embeddings
         try:
             chunks = NLPProcessorService.structure_aware_chunking(extracted_text)
             if not chunks:
@@ -190,7 +214,7 @@ async def upload_file(
             print(f"Warning: Chunking/embedding failed (file still saved): {chunk_err}")
             db.rollback()
 
-        print(f"File {filename} successfully saved in Supabase database.")
+        print(f"File {filename} successfully saved in Supabase database for user {db_user.id}.")
     except HTTPException:
         raise
     except Exception as e:
@@ -204,6 +228,7 @@ async def upload_file(
 
     return FileItemResponse(
         id=file_id,
+        user_id=db_user.id,
         project_id=project_id,
         filename=filename,
         file_type=file_type,
@@ -212,12 +237,44 @@ async def upload_file(
         source_url=source_url,
         status="completed",
         is_favorite=False,
+        is_single_use=is_single_use,
+        single_use_consumed=False,
         created_at=datetime.utcnow()
     )
 
+@router.delete("/{file_id}")
+def delete_file(
+    file_id: str,
+    token_payload: dict = Depends(verify_clerk_token),
+    db: Session = Depends(get_db)
+):
+    """Deletes physical file, vector embeddings, chunks, and DB record for authenticated owner."""
+    db_user = get_or_create_db_user(db, token_payload)
+
+    res = RetentionCleanupService.delete_file_immediately(file_id, db_user.id, db)
+    if res.get("status") in ["not_found", "unauthorized"]:
+        raise HTTPException(status_code=404, detail="File not found, expired, or access denied.")
+
+    return res
+
+@router.post("/{file_id}/consume")
+def consume_file(
+    file_id: str,
+    token_payload: dict = Depends(verify_clerk_token),
+    db: Session = Depends(get_db)
+):
+    """Triggers single-use consumption and immediate purging of stored document data."""
+    db_user = get_or_create_db_user(db, token_payload)
+
+    res = RetentionCleanupService.delete_file_immediately(file_id, db_user.id, db)
+    if res.get("status") in ["not_found", "unauthorized"]:
+        raise HTTPException(status_code=404, detail="File not found, expired, or access denied.")
+
+    return {"status": "consumed_and_purged", "file_id": file_id}
+
 @router.post("/cleanup")
 def trigger_retention_cleanup(db: Session = Depends(get_db)):
-    """Triggers the 15-day automated data retention cleanup operation."""
-    from app.services.retention.cleanup import RetentionCleanupService
+    """Triggers automated data retention cleanup operation."""
     return RetentionCleanupService.purge_expired_files(db)
+
 

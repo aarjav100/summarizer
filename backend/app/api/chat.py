@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.schemas.schemas import ChatMessageCreate, ChatMessageResponse, Citation
@@ -6,27 +6,42 @@ from app.services.llm.provider import LLMProviderService
 from app.services.rag.pipeline import RAGPipelineService
 from app.database.connection import get_db
 from app.database.models import FileItem, DocumentChunk
+from app.api.auth import verify_clerk_token, get_or_create_db_user
 from datetime import datetime
 import uuid
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
 @router.post("", response_model=ChatMessageResponse)
-def post_chat_message(payload: ChatMessageCreate, db: Session = Depends(get_db)):
+def post_chat_message(
+    payload: ChatMessageCreate,
+    token_payload: dict = Depends(verify_clerk_token),
+    db: Session = Depends(get_db)
+):
+    """Processes chat message verifying file ownership and authentication."""
+    db_user = get_or_create_db_user(db, token_payload)
+
     filename = None
     db_chunks = []
     full_context_text = None
     
-    try:
-        file_item = db.query(FileItem).filter(FileItem.id == payload.file_id).first() if payload.file_id else None
-        if file_item:
-            filename = file_item.filename
-            if payload.use_full_context:
-                full_context_text = file_item.ocr_extracted_text
-            else:
-                db_chunks = db.query(DocumentChunk).filter(DocumentChunk.file_id == payload.file_id).order_by(DocumentChunk.chunk_index).all()
-    except Exception as e:
-        print(f"Database query warning in chat: {e}")
+    if payload.file_id:
+        file_item = db.query(FileItem).filter(
+            FileItem.id == payload.file_id,
+            FileItem.user_id == db_user.id,
+            FileItem.cleanup_status == "active"
+        ).first()
+
+        if not file_item or file_item.single_use_consumed:
+            raise HTTPException(status_code=404, detail="File not found, expired, or access denied.")
+
+        filename = file_item.filename
+        if payload.use_full_context:
+            full_context_text = file_item.ocr_extracted_text
+        else:
+            db_chunks = db.query(DocumentChunk).filter(
+                DocumentChunk.file_id == payload.file_id
+            ).order_by(DocumentChunk.chunk_index).all()
 
     citations = []
     if payload.use_full_context and (full_context_text or filename):
@@ -60,28 +75,13 @@ def post_chat_message(payload: ChatMessageCreate, db: Session = Depends(get_db))
         context_text = "\n\n".join([c["content"] for c in relevant_chunks])
         prompt = f"Answer query: '{payload.message}' using retrieved citations from document.\n\nContent:\n{context_text}"
     else:
-        if not payload.file_id:
-            prompt = payload.message
-            citations.append(Citation(
-                chunk_id="general",
-                page_number=1,
-                timestamp_seconds=0.0,
-                source_text="General Knowledge Mode (chat operated without active document context)."
-            ))
-        else:
-            # Fallback catalog mocks
-            from app.api.files import MOCK_FILES
-            file_item = next((f for f in MOCK_FILES if f.id == payload.file_id), None)
-            filename = file_item.filename if file_item else None
-
-            citations.append(Citation(
-                chunk_id="chk_101",
-                page_number=3,
-                timestamp_seconds=145.0,
-                source_text=f"Semantic page data parsed from {filename or 'the document source'}."
-            ))
-            
-            prompt = f"Answer user query: '{payload.message}' using retrieved citations from {filename or 'the active document'}."
+        prompt = payload.message
+        citations.append(Citation(
+            chunk_id="general",
+            page_number=1,
+            timestamp_seconds=0.0,
+            source_text="General Knowledge Mode (chat operated without active document context)."
+        ))
 
     res = LLMProviderService.generate_completion(prompt=prompt, model_id=payload.model_id or "gpt-4.1", filename=filename)
 
@@ -93,3 +93,4 @@ def post_chat_message(payload: ChatMessageCreate, db: Session = Depends(get_db))
         model_name=payload.model_id or "GPT-4.1 Turbo",
         created_at=datetime.utcnow()
     )
+
