@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SEO } from './components/SEO';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
-import { useUser, useClerk } from '@clerk/clerk-react';
+import { useUser, useClerk, useAuth } from '@clerk/clerk-react';
 import { Header, UserProfile } from './components/Header';
 import { UploadModal } from './components/UploadModal';
 import { SummaryViewer } from './components/SummaryViewer';
@@ -21,13 +21,14 @@ const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return 'http://localhost:8000';
   }
-  return import.meta.env.VITE_API_BASE_URL || 'https://summamind-backend.onrender.com';
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate();
+  const { getToken } = useAuth();
   const [models, setModels] = useState<LLMModel[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('auto-router');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -60,6 +61,22 @@ const AppContent: React.FC = () => {
     imageUrl: user.imageUrl
   } : customUser;
 
+  const getAuthHeaders = async (customHeaders: Record<string, string> = {}): Promise<Record<string, string>> => {
+    let token: string | null = null;
+    try {
+      if (typeof getToken === 'function') {
+        token = await getToken();
+      }
+    } catch (err) {
+      console.warn('Could not retrieve Clerk token:', err);
+    }
+    const authHeader = token ? `Bearer ${token}` : 'Bearer demo_user_token_9999';
+    return {
+      'Authorization': authHeader,
+      ...customHeaders
+    };
+  };
+
   // Clean up URL query parameters after Clerk has successfully loaded/authenticated
   useEffect(() => {
     if (isClerkLoaded) {
@@ -74,19 +91,21 @@ const AppContent: React.FC = () => {
   }, [isClerkLoaded, navigate]);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/v1/models`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setModels(data);
-      })
-      .catch(() => {
-        setModels([
-          { id: 'auto-router', name: 'Smart AI Router', provider: 'System Auto', description: 'Auto-detect best model', max_tokens: 1000000, input_cost_per_1k: 0.0, output_cost_per_1k: 0.0, supports_vision: true },
-          { id: 'gpt-4.1', name: 'GPT-4.1 Turbo', provider: 'OpenAI', description: 'High precision structural extraction', max_tokens: 128000, input_cost_per_1k: 0.0025, output_cost_per_1k: 0.0075, supports_vision: true },
-          { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'Anthropic Claude', description: 'Detailed synthesis', max_tokens: 200000, input_cost_per_1k: 0.003, output_cost_per_1k: 0.015, supports_vision: true },
-          { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google Gemini', description: 'Multimodal processing', max_tokens: 1000000, input_cost_per_1k: 0.00035, output_cost_per_1k: 0.0105, supports_vision: true }
-        ]);
-      });
+    getAuthHeaders().then((headers) => {
+      fetch(`${API_BASE_URL}/api/v1/models`, { headers })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) setModels(data);
+        })
+        .catch(() => {
+          setModels([
+            { id: 'auto-router', name: 'Smart AI Router', provider: 'System Auto', description: 'Auto-detect best model', max_tokens: 1000000, input_cost_per_1k: 0.0, output_cost_per_1k: 0.0, supports_vision: true },
+            { id: 'gpt-4.1', name: 'GPT-4.1 Turbo', provider: 'OpenAI', description: 'High precision structural extraction', max_tokens: 128000, input_cost_per_1k: 0.0025, output_cost_per_1k: 0.0075, supports_vision: true },
+            { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'Anthropic Claude', description: 'Detailed synthesis', max_tokens: 200000, input_cost_per_1k: 0.003, output_cost_per_1k: 0.015, supports_vision: true },
+            { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google Gemini', description: 'Multimodal processing', max_tokens: 1000000, input_cost_per_1k: 0.00035, output_cost_per_1k: 0.0105, supports_vision: true }
+          ]);
+        });
+    });
 
     setProjects([
       { id: 'proj-1', name: 'AI Engineering Research', created_at: new Date().toISOString() },
@@ -97,8 +116,9 @@ const AppContent: React.FC = () => {
     fetchFilesFromAPI();
   }, []);
 
-  const fetchFilesFromAPI = () => {
-    fetch(`${API_BASE_URL}/api/v1/files?project_id=proj-1`)
+  const fetchFilesFromAPI = async () => {
+    const headers = await getAuthHeaders();
+    fetch(`${API_BASE_URL}/api/v1/files?project_id=proj-1`, { headers })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -126,11 +146,12 @@ const AppContent: React.FC = () => {
       });
   };
 
-  const loadSummaryForFile = (fileId: string, modelId: string, customTypes: string[] = ['short', 'medium', 'detailed', 'bullet', 'takeaways', 'extracted_details', 'action_items', 'faq', 'timeline', 'mcq', 'structured_json']) => {
+  const loadSummaryForFile = async (fileId: string, modelId: string, customTypes: string[] = ['short', 'medium', 'detailed', 'bullet', 'takeaways', 'extracted_details', 'action_items', 'faq', 'timeline', 'mcq', 'structured_json']) => {
     setIsLoadingSummary(true);
+    const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
     fetch(`${API_BASE_URL}/api/v1/summarize`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ file_id: fileId, summary_types: customTypes, model_id: modelId })
     })
       .then((res) => res.json())
@@ -201,7 +222,7 @@ const AppContent: React.FC = () => {
       .finally(() => setIsLoadingSummary(false));
   };
 
-  const handleSendMessage = (text: string, useFullContext: boolean = false, useFileContext: boolean = true) => {
+  const handleSendMessage = async (text: string, useFullContext: boolean = false, useFileContext: boolean = true) => {
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
@@ -210,9 +231,10 @@ const AppContent: React.FC = () => {
     };
     setChatMessages((prev) => [...prev, userMsg]);
 
+    const headers = await getAuthHeaders({ 'Content-Type': 'application/json' });
     fetch(`${API_BASE_URL}/api/v1/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ 
         chat_id: 'chat-101', 
         message: text, 

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useAuth } from '@clerk/clerk-react';
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ const getApiBaseUrl = () => {
   if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     return 'http://localhost:8000';
   }
-  return import.meta.env.VITE_API_BASE_URL || 'https://summamind-backend.onrender.com';
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -22,6 +23,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   onUploadSuccess,
   projectId
 }) => {
+  const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState<'file' | 'url' | 'text'>('file');
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -61,6 +63,16 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     e.preventDefault();
     setIsUploading(true);
 
+    let token: string | null = null;
+    try {
+      if (typeof getToken === 'function') {
+        token = await getToken();
+      }
+    } catch (err) {
+      console.warn('Could not retrieve Clerk token in UploadModal:', err);
+    }
+    const authHeader = token ? `Bearer ${token}` : 'Bearer demo_user_token_9999';
+
     let type: 'pdf' | 'image' | 'video' | 'audio' | 'url' | 'text' = 'pdf';
     let name = 'Document';
     let size = 1200;
@@ -82,7 +94,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
       size = textInput.length;
     }
 
-    // Call simulated API upload
+    // Call API upload
     const formData = new FormData();
     if (activeTab === 'file' && selectedFile) {
       formData.append('file', selectedFile);
@@ -94,6 +106,9 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
     fetch(`${API_BASE_URL}/api/v1/files/upload`, {
       method: 'POST',
+      headers: {
+        'Authorization': authHeader
+      },
       body: formData
     })
       .then((res) => {
