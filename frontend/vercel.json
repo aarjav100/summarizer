@@ -35,11 +35,7 @@
       "destination": "https://summamind-backend.onrender.com/api/:path*"
     },
     {
-      "source": "/workspace",
-      "destination": "/workspace/index.html"
-    },
-    {
-      "source": "/((?!api/|.*\\..*).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
