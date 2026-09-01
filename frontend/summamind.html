@@ -6,8 +6,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8816514726616311"
-     crossorigin="anonymous" onerror="console.warn('Google AdSense script could not be loaded due to browser ad blocker or network filter.')"></script>
+<script>
+  (function() {
+    if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
+      var s = document.createElement('script');
+      s.async = true;
+      s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8816514726616311";
+      s.crossOrigin = "anonymous";
+      s.onerror = function() {
+        console.warn('Google AdSense script blocked by client browser extension or network filter.');
+      };
+      document.head.appendChild(s);
+    }
+  })();
+</script>
 <style>
   :root{
     --paper:#EDE9DF;
