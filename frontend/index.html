@@ -52,7 +52,7 @@
     }
     </script>
 
-    <!-- Google AdSense (Loaded dynamically in production; skipped on localhost to avoid adblocker/SSL errors) -->
+    <!-- Google AdSense (Loaded dynamically in production; skipped on localhost to avoid local SSL/network noise) -->
     <script>
       (function() {
         if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && !window.location.hostname.includes('127.0.0.1')) {
@@ -61,7 +61,7 @@
           s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8816514726616311";
           s.crossOrigin = "anonymous";
           s.onerror = function() {
-            console.warn('Google AdSense script blocked by client browser extension or network filter.');
+            console.warn('Google AdSense script could not be loaded. This may be caused by network filtering, security software, certificate validation, or browser extensions.');
           };
           document.head.appendChild(s);
         }
