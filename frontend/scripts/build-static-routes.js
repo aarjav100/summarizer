@@ -72,6 +72,25 @@ const globalFooter = `
 
 const routes = [
   {
+    path: 'workspace',
+    title: 'Reading Room Workspace — SummaMind Studio',
+    description: 'Analyze your documents with SummaMind Studio\'s AI Reading Room. Upload PDFs, images, audio, or URLs and receive grounded summaries, timelines, FAQs, and cited RAG answers.',
+    canonical: 'https://summamind.shop/workspace',
+    content: `
+      ${navHeader}
+      <main style="max-width:1200px; margin:0 auto; padding:40px 24px; color:#EDE6D6; font-family:'IBM Plex Sans',sans-serif;">
+        <div style="text-align:center; margin-bottom:36px;">
+          <div style="font-size:12px; font-family:'IBM Plex Mono',monospace; color:#D4AF37; letter-spacing:0.15em; text-transform:uppercase; margin-bottom:10px;">READING ROOM WORKSPACE</div>
+          <h1 style="font-family:'Playfair Display',serif; font-size:36px; color:#D4AF37; margin:0 0 10px; font-weight:normal;">Multimodal Document Intelligence Console</h1>
+          <p style="font-size:15px; color:#A8C3B8; max-width:680px; margin:0 auto; line-height:1.6;">
+            Ingest PDFs, images, and audio transcripts to synthesize structured summaries and verify claims with grounded RAG citations.
+          </p>
+        </div>
+      </main>
+      ${globalFooter}
+    `
+  },
+  {
     path: 'about',
     title: 'About Us — SummaMind Studio Multimodal AI Intelligence',
     description: 'Learn about SummaMind Studio, our mission, multi-modal vector search architecture, and zero model retraining privacy framework.',
